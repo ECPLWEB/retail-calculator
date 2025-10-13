@@ -96,6 +96,32 @@
         .boq-table col.amount {
             width: 16%;
         }
+
+        .cost-breakdown-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.5rem;
+        }
+
+        .cost-breakdown-label {
+            color: #9ca3af;
+            /* gray-400 */
+        }
+
+        .cost-breakdown-value {
+            font-weight: 500;
+        }
+
+        .cost-breakdown-percent {
+            background-color: #374151;
+            /* gray-700 */
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-weight: 600;
+            min-width: 50px;
+            text-align: right;
+        }
     </style>
 </head>
 
@@ -105,13 +131,13 @@
         <!-- Header -->
         <header class="text-center mb-8 no-print">
             <h1 class="text-3xl sm:text-4xl font-bold text-white tracking-tight">Retail Wall BOQ Generator</h1>
-            <p class="mt-2 text-lg text-gray-400">Select a brand and enter wall dimensions to generate a detailed BOQ.
+            <p class="mt-2 text-lg text-gray-400">Select options and enter wall dimensions to generate a detailed BOQ.
             </p>
         </header>
 
         <!-- Input Form -->
         <div class="bg-gray-800 p-6 rounded-xl shadow-lg mb-8 no-print">
-            <form id="boq-form" class="grid grid-cols-1 md:grid-cols-5 gap-6 items-end">
+            <form id="boq-form" class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-6 items-end">
                 <div>
                     <label for="brand-select" class="block text-sm font-medium text-gray-300 mb-1">Brand</label>
                     <select id="brand-select"
@@ -132,6 +158,25 @@
                     </select>
                 </div>
                 <div>
+                    <label for="header-height-select" class="block text-sm font-medium text-gray-300 mb-1">Header
+                        Height</label>
+                    <select id="header-height-select"
+                        class="w-full bg-gray-700 text-white border-gray-600 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 p-3">
+                        <option value="300">300 mm</option>
+                        <option value="400">400 mm</option>
+                        <option value="450">450 mm</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="shelf-type-select" class="block text-sm font-medium text-gray-300 mb-1">Shelf
+                        Type</label>
+                    <select id="shelf-type-select"
+                        class="w-full bg-gray-700 text-white border-gray-600 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 p-3">
+                        <option value="non-lit">Non-LIT</option>
+                        <option value="lit">LIT</option>
+                    </select>
+                </div>
+                <div>
                     <label for="wall-width" class="block text-sm font-medium text-gray-300 mb-1">Wall Width (mm)</label>
                     <input type="number" id="wall-width" step="1" required placeholder="e.g., 3200"
                         class="w-full bg-gray-700 text-white border-gray-600 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 p-3">
@@ -143,7 +188,7 @@
                         class="w-full bg-gray-700 text-white border-gray-600 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 p-3">
                 </div>
                 <button type="submit"
-                    class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg shadow-md transition-transform transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-800 focus:ring-blue-500">
+                    class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-lg shadow-md transition-transform transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-gray-800 focus:ring-blue-500 lg:col-span-6">
                     Generate BOQ
                 </button>
             </form>
@@ -197,22 +242,119 @@
             </div>
 
 
-            <!-- Margin and Final Total Section -->
-            <div id="final-calculation-section" class="hidden mt-6 flex justify-end">
-                <div class="w-full max-w-sm bg-gray-800 p-4 rounded-lg">
-                    <div class="flex justify-between items-center mb-2">
-                        <span class="text-gray-400">Aggregated BOM Total</span>
-                        <span id="bom-sub-total-display" class="font-semibold">₹ 0.00</span>
+            <!-- Final Cost Breakdown -->
+            <div id="final-calculation-section" class="hidden mt-8 flex justify-end">
+                <div class="w-full max-w-md bg-gray-800 p-6 rounded-lg">
+                    <h3 class="text-xl font-bold mb-4">Final Cost Breakdown</h3>
+
+                    <div class="cost-breakdown-row">
+                        <span class="cost-breakdown-label">Aggregated BOM Total</span>
+                        <span id="bom-sub-total-display" class="cost-breakdown-value font-semibold">₹ 0.00</span>
                     </div>
-                    <div class="flex justify-between items-center mb-4">
-                        <label for="margin-multiplier" class="text-gray-400">Margin Multiplier (x)</label>
-                        <span id="margin-multiplier" contenteditable="true"
-                            class="bg-gray-700 px-2 py-1 rounded font-semibold text-right w-20">2.20</span>
-                    </div>
+
                     <hr class="border-gray-600 my-2">
-                    <div class="flex justify-between items-center mt-4">
-                        <span class="text-xl font-bold">Final Total</span>
-                        <span id="final-total" class="text-xl font-bold text-green-400">₹ 0.00</span>
+
+                    <div class="cost-breakdown-row">
+                        <span class="cost-breakdown-label flex items-center gap-2">Landing Price <span
+                                class="text-xs">(of BOM)</span></span>
+                        <div class="flex items-center gap-2">
+                            <span id="landing-price-percent" class="cost-breakdown-percent"
+                                contenteditable="true">10</span>%
+                            <span id="landing-price-value" class="cost-breakdown-value w-28 text-right">₹ 0.00</span>
+                        </div>
+                    </div>
+                    <div class="cost-breakdown-row">
+                        <span class="cost-breakdown-label flex items-center gap-2">Wastage <span class="text-xs">(of
+                                BOM)</span></span>
+                        <div class="flex items-center gap-2">
+                            <span id="wastage-percent" class="cost-breakdown-percent" contenteditable="true">10</span>%
+                            <span id="wastage-value" class="cost-breakdown-value w-28 text-right">₹ 0.00</span>
+                        </div>
+                    </div>
+                    <div class="cost-breakdown-row">
+                        <span class="cost-breakdown-label flex items-center gap-2">Indirect Material <span
+                                class="text-xs">(of BOM)</span></span>
+                        <div class="flex items-center gap-2">
+                            <span id="indirect-material-percent" class="cost-breakdown-percent"
+                                contenteditable="true">5</span>%
+                            <span id="indirect-material-value" class="cost-breakdown-value w-28 text-right">₹
+                                0.00</span>
+                        </div>
+                    </div>
+                    <div class="cost-breakdown-row">
+                        <span class="cost-breakdown-label flex items-center gap-2">Labour Charges <span
+                                class="text-xs">(of BOM)</span></span>
+                        <div class="flex items-center gap-2">
+                            <span id="labour-percent" class="cost-breakdown-percent" contenteditable="true">30</span>%
+                            <span id="labour-value" class="cost-breakdown-value w-28 text-right">₹ 0.00</span>
+                        </div>
+                    </div>
+
+                    <hr class="border-gray-600 my-2">
+
+                    <div class="cost-breakdown-row font-semibold">
+                        <span>Subtotal 1</span>
+                        <span id="subtotal-1-value">₹ 0.00</span>
+                    </div>
+
+                    <hr class="border-gray-600 my-2">
+
+                    <div class="cost-breakdown-row">
+                        <span class="cost-breakdown-label flex items-center gap-2">Overheads (OH) <span
+                                class="text-xs">(of Subtotal 1)</span></span>
+                        <div class="flex items-center gap-2">
+                            <span id="oh-percent" class="cost-breakdown-percent" contenteditable="true">15</span>%
+                            <span id="oh-value" class="cost-breakdown-value w-28 text-right">₹ 0.00</span>
+                        </div>
+                    </div>
+                    <div class="cost-breakdown-row">
+                        <span class="cost-breakdown-label flex items-center gap-2">Profit <span class="text-xs">(of
+                                Subtotal 1)</span></span>
+                        <div class="flex items-center gap-2">
+                            <span id="profit-percent" class="cost-breakdown-percent" contenteditable="true">20</span>%
+                            <span id="profit-value" class="cost-breakdown-value w-28 text-right">₹ 0.00</span>
+                        </div>
+                    </div>
+
+                    <hr class="border-gray-600 my-2">
+
+                    <div class="cost-breakdown-row font-semibold">
+                        <span>Subtotal 2</span>
+                        <span id="subtotal-2-value">₹ 0.00</span>
+                    </div>
+
+                    <hr class="border-gray-600 my-2">
+
+                    <div class="cost-breakdown-row">
+                        <span class="cost-breakdown-label flex items-center gap-2">Packing <span class="text-xs">(of
+                                Subtotal 2)</span></span>
+                        <div class="flex items-center gap-2">
+                            <span id="packing-percent" class="cost-breakdown-percent" contenteditable="true">5</span>%
+                            <span id="packing-value" class="cost-breakdown-value w-28 text-right">₹ 0.00</span>
+                        </div>
+                    </div>
+                    <div class="cost-breakdown-row">
+                        <span class="cost-breakdown-label flex items-center gap-2">Unloading <span
+                                class="text-xs">(Higher of % or 6k)</span></span>
+                        <div class="flex items-center gap-2">
+                            <span id="unloading-percent" class="cost-breakdown-percent" contenteditable="true">5</span>%
+                            <span id="unloading-value" class="cost-breakdown-value w-28 text-right">₹ 0.00</span>
+                        </div>
+                    </div>
+                    <div class="cost-breakdown-row">
+                        <span class="cost-breakdown-label flex items-center gap-2">Installation Adj. <span
+                                class="text-xs">(of Subtotal 2)</span></span>
+                        <div class="flex items-center gap-2">
+                            <span id="install-percent" class="cost-breakdown-percent" contenteditable="true">2</span>%
+                            <span id="install-value" class="cost-breakdown-value w-28 text-right">₹ 0.00</span>
+                        </div>
+                    </div>
+
+                    <hr class="border-t-2 border-gray-500 my-3">
+
+                    <div class="cost-breakdown-row text-xl font-bold">
+                        <span class="text-green-400">Final Total</span>
+                        <span id="final-total" class="text-green-400">₹ 0.00</span>
                     </div>
                 </div>
             </div>
@@ -331,30 +473,30 @@
             "Parx": {
                 getRate: findClosestRate,
                 wallFixtures: [
-                    { item: "Header", unit: "Nos", rate: 0, qty: () => 1, l: (w, h, config) => w, w: () => 450, h: () => 300 },
-                    { item: "Side Portals", unit: "Nos", rate: 0, qty: () => 2, l: (w, h, config) => config.adjustedPortalThickness, w: () => 450, h: (w, h) => h - 300 },
-                    { item: "Back Panels", unit: "Nos", rate: 0, qty: (w, h, config) => config.numBays, l: () => BACK_PANEL_MODULE_MM, w: () => 18, h: (w, h) => h - 300 },
-                    { item: "Channels", unit: "Nos", rate: 0, qty: (w, h, config) => config.numBays + 1, l: () => 40, w: () => 25, h: (w, h) => h - 300 },
+                    { item: "Header", unit: "Nos", rate: 0, qty: () => 1, l: (w, h, config, options) => w, w: () => 450, h: (w, h, config, options) => options.headerHeight },
+                    { item: "Side Portals", unit: "Nos", rate: 0, qty: () => 2, l: (w, h, config, options) => config.adjustedPortalThickness, w: () => 450, h: (w, h, config, options) => h - options.headerHeight },
+                    { item: "Back Panels", unit: "Nos", rate: 0, qty: (w, h, config, options) => config.numBays, l: () => BACK_PANEL_MODULE_MM, w: () => 18, h: (w, h, config, options) => h - options.headerHeight },
+                    { item: "Channels", unit: "Nos", rate: 0, qty: (w, h, config, options) => config.numBays + 1, l: () => 40, w: () => 25, h: (w, h, config, options) => h - options.headerHeight },
                     {
-                        item: "Shelves", unit: "Nos", rate: 0, qty: (w, h, config) => {
+                        item: "Shelves", unit: "Nos", rate: 0, qty: (w, h, config, options) => {
                             const bottomClearance = 50 + 325; // plinth + drawer
-                            const availableHeight = h - 300 - bottomClearance - 300;
+                            const availableHeight = h - options.headerHeight - bottomClearance - 300;
                             if (availableHeight < 0) return 0;
                             const numShelfLevels = Math.floor(availableHeight / 300) + 1;
                             return numShelfLevels * config.numBays;
                         }, l: () => 600, w: () => 430, h: () => 18
                     },
-                    { item: "Drawers", unit: "Nos", rate: 0, qty: (w, h, config) => config.numBays, l: () => 600, w: () => 430, h: () => 325 },
-                    { item: "Plinth", unit: "Nos", rate: 0, qty: (w, h, config) => config.numBays, l: () => BACK_PANEL_MODULE_MM, w: () => 50, h: () => 50 },
-                    { item: "Signage", unit: "SqFt", rate: 3650, qty: () => (600 * 300) * SQMM_TO_SQFT, l: () => 600, w: () => 30, h: () => 300 }
+                    { item: "Drawers", unit: "Nos", rate: 0, qty: (w, h, config, options) => config.numBays, l: () => 600, w: () => 430, h: () => 325 },
+                    { item: "Plinth", unit: "Nos", rate: 0, qty: (w, h, config, options) => config.numBays, l: () => BACK_PANEL_MODULE_MM, w: () => 50, h: () => 50 },
+                    { item: "Signage", unit: "SqFt", rate: 3650, qty: (w, h, config, options) => (600 * 300) * SQMM_TO_SQFT, l: () => 600, w: () => 30, h: () => 300 }
                 ],
                 accessories: [
                     { item: "Straight Arm", unit: "Nos", rate: 0, qty: () => 1, l: () => 25, w: () => 300, h: () => 25 },
                     { item: "Backbar", unit: "Nos", rate: 0, qty: () => 1, l: () => 580, w: () => 25, h: () => 25 },
                     {
-                        item: "Shelf Bracket", unit: "Nos", rate: 0, qty: (w, h, config) => {
+                        item: "Shelf Bracket", unit: "Nos", rate: 0, qty: (w, h, config, options) => {
                             const bottomClearance = 50 + 325;
-                            const availableHeight = h - 300 - bottomClearance - 300;
+                            const availableHeight = h - options.headerHeight - bottomClearance - 300;
                             if (availableHeight < 0) return 0;
                             const numShelfLevels = Math.floor(availableHeight / 300) + 1;
                             return numShelfLevels * config.numBays;
@@ -362,12 +504,44 @@
                     },
                 ]
             },
-            "Park Avenue": {}, // Simplified for brevity
+            "Park Avenue": {
+                getRate: findClosestRate,
+                wallFixtures: [
+                    { item: "Header", unit: "Nos", rate: 0, qty: () => 1, l: (w, h, config, options) => w, w: () => 450, h: (w, h, config, options) => options.headerHeight },
+                    { item: "Side Portals", unit: "Nos", rate: 0, qty: () => 2, l: (w, h, config, options) => config.adjustedPortalThickness, w: () => 450, h: (w, h, config, options) => h - options.headerHeight },
+                    { item: "Back Panels", unit: "Nos", rate: 0, qty: (w, h, config, options) => config.numBays, l: () => BACK_PANEL_MODULE_MM, w: () => 18, h: (w, h, config, options) => h - options.headerHeight },
+                    { item: "Channels", unit: "Nos", rate: 0, qty: (w, h, config, options) => config.numBays + 1, l: () => 40, w: () => 25, h: (w, h, config, options) => h - options.headerHeight },
+                    {
+                        item: "Shelves", unit: "Nos", rate: 0, qty: (w, h, config, options) => {
+                            const bottomClearance = 50 + 325; // plinth + drawer
+                            const availableHeight = h - options.headerHeight - bottomClearance - 300;
+                            if (availableHeight < 0) return 0;
+                            const numShelfLevels = Math.floor(availableHeight / 300) + 1;
+                            return numShelfLevels * config.numBays;
+                        }, l: () => 600, w: () => 430, h: () => 18
+                    },
+                    { item: "Drawers", unit: "Nos", rate: 0, qty: (w, h, config, options) => config.numBays, l: () => 600, w: () => 430, h: () => 325 },
+                    { item: "Plinth", unit: "Nos", rate: 0, qty: (w, h, config, options) => config.numBays, l: () => BACK_PANEL_MODULE_MM, w: () => 50, h: () => 50 },
+                    { item: "Signage", unit: "SqFt", rate: 3650, qty: (w, h, config, options) => (600 * 300) * SQMM_TO_SQFT, l: () => 600, w: () => 30, h: () => 300 }
+                ],
+                accessories: [
+                    { item: "Straight Arm", unit: "Nos", rate: 0, qty: () => 1, l: () => 25, w: () => 300, h: () => 25 },
+                    { item: "Backbar", unit: "Nos", rate: 0, qty: () => 1, l: () => 580, w: () => 25, h: () => 25 },
+                    {
+                        item: "Shelf Bracket", unit: "Nos", rate: 0, qty: (w, h, config, options) => {
+                            const bottomClearance = 50 + 325;
+                            const availableHeight = h - options.headerHeight - bottomClearance - 300;
+                            if (availableHeight < 0) return 0;
+                            const numShelfLevels = Math.floor(availableHeight / 300) + 1;
+                            return numShelfLevels * config.numBays;
+                        }, l: () => 0, w: () => 0, h: () => 0
+                    },
+                ]
+            },
             "ColorPlus": {},
             "Ethnix": {}
         };
         BRAND_DATA["Ready to Wear"] = BRAND_DATA["Parx"];
-        BRAND_DATA["Park Avenue"] = BRAND_DATA["Parx"]; // temp for testing
         BRAND_DATA["ColorPlus"] = BRAND_DATA["Parx"];
         BRAND_DATA["Ethnix"] = BRAND_DATA["Parx"];
 
@@ -381,7 +555,7 @@
                         rate: 65,
                         wastage: 15,
                         sheetGood: true,
-                        calculateBaseQty: (fixture) => {
+                        calculateBaseQty: (fixture, options) => {
                             let area = 0;
                             if (['Header', 'Side Portals', 'Plinth'].includes(fixture.item)) {
                                 area = (2 * (fixture.l * fixture.w + fixture.l * fixture.h + fixture.w * fixture.h));
@@ -398,7 +572,7 @@
                         rate: 75,
                         wastage: 15,
                         sheetGood: true,
-                        calculateBaseQty: (fixture) => {
+                        calculateBaseQty: (fixture, options) => {
                             let area = 0;
                             if (fixture.item === 'Back Panels') {
                                 area = (fixture.l * fixture.h);
@@ -415,10 +589,10 @@
                     {
                         item: "25mm MDF BSL (for Duco Pattern)",
                         unit: "SqFt",
-                        rate: 100,
+                        rate: 95,
                         wastage: 15,
                         sheetGood: true,
-                        calculateBaseQty: (fixture) => {
+                        calculateBaseQty: (fixture, options) => {
                             if ((['Header', 'Side Portals'].includes(fixture.item)) && fixture.l >= 50) {
                                 return (fixture.l * fixture.h) * SQMM_TO_SQFT;
                             }
@@ -431,7 +605,7 @@
                         rate: 47,
                         wastage: 15,
                         sheetGood: true,
-                        calculateBaseQty: (fixture) => {
+                        calculateBaseQty: (fixture, options) => {
                             let area = 0;
                             if (['Header', 'Side Portals', 'Plinth'].includes(fixture.item)) {
                                 area = (2 * (fixture.l * fixture.w + fixture.l * fixture.h + fixture.w * fixture.h));
@@ -443,15 +617,15 @@
                         }
                     },
                     {
-                        item: "Duco Paint (for Pattern)", unit: "SqFt", rate: 200, wastage: 0,
-                        calculateBaseQty: (fixture) => {
+                        item: "Duco Paint (for Pattern)", unit: "SqFt", rate: 200, wastage: 15,
+                        calculateBaseQty: (fixture, options) => {
                             if (!['Header', 'Side Portals'].includes(fixture.item) || fixture.l < 50) return 0;
                             return (fixture.l * fixture.h * 1.5) * SQMM_TO_SQFT;
                         }
                     },
                     {
                         item: "PVC Edge Banding (25mm)", unit: "RFt", rate: 7, wastage: 0,
-                        calculateBaseQty: (fixture) => {
+                        calculateBaseQty: (fixture, options) => {
                             if (['Header', 'Side Portals', 'Plinth', 'Shelves', 'Drawers'].includes(fixture.item)) {
                                 return (2 * (fixture.l + fixture.w)) * MM_TO_FT;
                             }
@@ -460,28 +634,37 @@
                     },
                     {
                         item: "Aluminium Channel Profile", unit: "RFt", rate: 115, wastage: 0,
-                        calculateBaseQty: (fixture) => {
+                        calculateBaseQty: (fixture, options) => {
                             return fixture.item === 'Channels' ? 8 : 0; // Each channel consumes an 8ft length
                         }
                     },
                     {
                         item: "Backclips for Accessories", unit: "Nos", rate: 40, wastage: 0,
-                        calculateBaseQty: (fixture) => {
+                        calculateBaseQty: (fixture, options) => {
                             return ['Straight Arm', 'Backbar'].includes(fixture.item) ? 2 : 0;
                         }
                     },
                     {
-                        item: "MS Pipe (25x40mm, 1.5mm thk)", unit: "Kg", rate: 110, wastage: 0,
-                        calculateBaseQty: (fixture) => {
-                            const weightPerFoot = 0.45;
-                            if (fixture.item === 'Straight Arm') return (fixture.w * MM_TO_FT) * weightPerFoot;
+                        item: "MS Pipe (15x30mm, 2mm thk)", unit: "Kg", rate: 110, wastage: 0,
+                        calculateBaseQty: (fixture, options) => {
+                            const weightPerFoot = 0.43;
+                            if (fixture.item === 'Straight Arm') return 4 * weightPerFoot;
                             if (fixture.item === 'Backbar') return (fixture.l * MM_TO_FT) * weightPerFoot;
                             return 0;
                         }
                     },
                     {
+                        item: "MS Shelf Bracket Cost",
+                        unit: "Nos",
+                        rate: 105, // 350mm * 0.30 rs/mm
+                        wastage: 0,
+                        calculateBaseQty: (fixture, options) => {
+                            return fixture.item === 'Shelf Bracket' ? 1 : 0;
+                        }
+                    },
+                    {
                         item: "Powder Coating", unit: "Lump Sum Cost", rate: 1, wastage: 0,
-                        calculateBaseQty: (fixture) => {
+                        calculateBaseQty: (fixture, options) => {
                             const rftRate = 25;
                             const sqftRate = 50;
                             if (fixture.item === 'Channels') {
@@ -489,6 +672,9 @@
                             }
                             if (fixture.item === 'Backbar') {
                                 return (fixture.l * MM_TO_FT) * rftRate;
+                            }
+                            if (fixture.item === 'Straight Arm') {
+                                return 4 * rftRate;
                             }
                             if (fixture.item === 'Shelf Bracket') {
                                 return (350 * MM_TO_FT) * rftRate;
@@ -498,13 +684,154 @@
                     },
                     {
                         item: "Finished 3D Acrylic Signage", unit: "SqFt", rate: 3650, wastage: 0,
-                        calculateBaseQty: (fixture) => {
+                        calculateBaseQty: (fixture, options) => {
                             return fixture.item === 'Signage' ? (600 * 300) * SQMM_TO_SQFT : 0;
+                        }
+                    },
+                    // LIT Shelf Materials
+                    {
+                        item: "Aluminium LED Profile", unit: "RFt", rate: 30, wastage: 0,
+                        calculateBaseQty: (fixture, options) => (options.shelfType === 'lit' && fixture.item === 'Shelves') ? fixture.l * MM_TO_FT : 0
+                    },
+                    {
+                        item: "LED Light Strip (4000K)", unit: "RFt", rate: 25, wastage: 0,
+                        calculateBaseQty: (fixture, options) => (options.shelfType === 'lit' && fixture.item === 'Shelves') ? fixture.l * MM_TO_FT : 0
+                    },
+                    {
+                        item: "1mm Wire (for fixture)", unit: "RFt", rate: 18, wastage: 0,
+                        calculateBaseQty: (fixture, options) => (options.shelfType === 'lit' && fixture.item === 'Shelves') ? 3.28 : 0 // 1 meter
+                    },
+                    {
+                        item: "1.5mm Wire (for driver)", unit: "Meter", rate: 25, wastage: 0,
+                        calculateBaseQty: (fixture, options) => (options.shelfType === 'lit' && fixture.item === 'Shelves') ? 0.8 : 0 // 4 meters / 5 shelves
+                    },
+                    {
+                        item: "LED Driver", unit: "Nos", rate: 1500, wastage: 0,
+                        calculateBaseQty: (fixture, options) => (options.shelfType === 'lit' && fixture.item === 'Shelves') ? 0.2 : 0 // 1 driver / 5 shelves
+                    }
+                ]
+            },
+            "Park Avenue": {
+                materials: [
+                    {
+                        item: "18mm MDF BSL (Charcoal/Off-white)",
+                        unit: "SqFt",
+                        rate: 75, // Assuming same rate as standard BSL
+                        wastage: 15,
+                        sheetGood: true,
+                        calculateBaseQty: (fixture, options) => {
+                            let area = 0;
+                            if (['Header', 'Side Portals', 'Plinth', 'Drawers', 'Back Panels', 'Shelves'].includes(fixture.item)) {
+                                area = (2 * (fixture.l * fixture.w + fixture.l * fixture.h + fixture.w * fixture.h));
+                            }
+                            return area * SQMM_TO_SQFT;
+                        }
+                    },
+                    {
+                        item: "25x25mm AL Pipe (for Pattern)", unit: "RFt", rate: 40, wastage: 0,
+                        calculateBaseQty: (fixture, options) => {
+                            if (!['Header', 'Side Portals'].includes(fixture.item) || fixture.l < 50) return 0;
+                            const numStrips = Math.ceil(fixture.h / 50.4);
+                            return (numStrips * fixture.l) * MM_TO_FT;
+                        }
+                    },
+                    {
+                        item: "PVC Edge Banding (25mm)", unit: "RFt", rate: 7, wastage: 0,
+                        calculateBaseQty: (fixture, options) => {
+                            if (['Header', 'Side Portals', 'Plinth', 'Shelves', 'Drawers', 'Back Panels'].includes(fixture.item)) {
+                                return (2 * (fixture.l + fixture.w)) * MM_TO_FT;
+                            }
+                            return 0;
+                        }
+                    },
+                    {
+                        item: "Aluminium Channel Profile", unit: "RFt", rate: 115, wastage: 0,
+                        calculateBaseQty: (fixture, options) => fixture.item === 'Channels' ? 8 : 0
+                    },
+                    {
+                        item: "Backclips for Accessories", unit: "Nos", rate: 40, wastage: 0,
+                        calculateBaseQty: (fixture, options) => ['Straight Arm', 'Backbar'].includes(fixture.item) ? 2 : 0
+                    },
+                    {
+                        item: "MS Pipe (15x30mm, 2mm thk)", unit: "Kg", rate: 110, wastage: 0,
+                        calculateBaseQty: (fixture, options) => {
+                            const weightPerFoot = 0.43;
+                            if (fixture.item === 'Straight Arm') return 4 * weightPerFoot;
+                            if (fixture.item === 'Backbar') return (fixture.l * MM_TO_FT) * weightPerFoot;
+                            return 0;
+                        }
+                    },
+                    {
+                        item: "MS Shelf Bracket Cost", unit: "Nos", rate: 105, wastage: 0,
+                        calculateBaseQty: (fixture, options) => fixture.item === 'Shelf Bracket' ? 1 : 0
+                    },
+                    {
+                        item: "Powder Coating", unit: "Lump Sum Cost", rate: 1, wastage: 0,
+                        calculateBaseQty: (fixture, options) => {
+                            const rftRate = 25;
+                            const sqftRate = 50;
+                            if (fixture.item === 'Channels') {
+                                return ((2 * (fixture.l + fixture.w) * fixture.h) * SQMM_TO_SQFT) * sqftRate;
+                            }
+                            if (['Header', 'Side Portals'].includes(fixture.item)) { // For the AL Pipe pattern
+                                const numStrips = Math.ceil(fixture.h / 50.4);
+                                return ((numStrips * fixture.l) * MM_TO_FT) * rftRate;
+                            }
+                            if (fixture.item === 'Backbar') return (fixture.l * MM_TO_FT) * rftRate;
+                            if (fixture.item === 'Straight Arm') return 4 * rftRate;
+                            if (fixture.item === 'Shelf Bracket') return (350 * MM_TO_FT) * rftRate;
+                            return 0;
+                        }
+                    },
+                    {
+                        item: "Finished 3D Acrylic Signage", unit: "SqFt", rate: 3650, wastage: 0,
+                        calculateBaseQty: (fixture, options) => fixture.item === 'Signage' ? (600 * 300) * SQMM_TO_SQFT : 0
+                    },
+                    // LIT Fixture Materials (Header, Portals, Shelves)
+                    {
+                        item: "Aluminium LED Profile", unit: "RFt", rate: 30, wastage: 0,
+                        calculateBaseQty: (fixture, options) => {
+                            if (options.shelfType === 'lit' && fixture.item === 'Shelves') return fixture.l * MM_TO_FT;
+                            if (fixture.item === 'Header') return fixture.l * MM_TO_FT;
+                            if (fixture.item === 'Side Portals') return fixture.h * MM_TO_FT;
+                            return 0;
+                        }
+                    },
+                    {
+                        item: "LED Light Strip (4000K)", unit: "RFt", rate: 25, wastage: 0,
+                        calculateBaseQty: (fixture, options) => {
+                            if (options.shelfType === 'lit' && fixture.item === 'Shelves') return fixture.l * MM_TO_FT;
+                            if (fixture.item === 'Header') return fixture.l * MM_TO_FT;
+                            if (fixture.item === 'Side Portals') return fixture.h * MM_TO_FT;
+                            return 0;
+                        }
+                    },
+                    {
+                        item: "1mm Wire (for fixture)", unit: "RFt", rate: 18, wastage: 0,
+                        calculateBaseQty: (fixture, options) => {
+                            if ((options.shelfType === 'lit' && fixture.item === 'Shelves') || ['Header', 'Side Portals'].includes(fixture.item)) return 3.28; // 1 meter
+                            return 0;
+                        }
+                    },
+                    {
+                        item: "1.5mm Wire (for driver)", unit: "Meter", rate: 25, wastage: 0,
+                        calculateBaseQty: (fixture, options) => {
+                            if (options.shelfType === 'lit' && fixture.item === 'Shelves') return 0.8; // 4 meters / 5 shelves
+                            if (['Header', 'Side Portals'].includes(fixture.item)) return 2.0; // Assume 2m per driver
+                            return 0;
+                        }
+                    },
+                    {
+                        item: "LED Driver", unit: "Nos", rate: 1500, wastage: 0,
+                        calculateBaseQty: (fixture, options) => {
+                            if (options.shelfType === 'lit' && fixture.item === 'Shelves') return 0.2; // 1 driver / 5 shelves
+                            if (['Header', 'Side Portals'].includes(fixture.item)) return 1.0; // 1 driver per fixture
+                            return 0;
                         }
                     }
                 ]
             }
-        }
+        };
 
 
         // --- DOM ELEMENTS ---
@@ -512,6 +839,8 @@
         const brandSelect = document.getElementById('brand-select');
         const rateTypeContainer = document.getElementById('rate-type-container');
         const rateTypeSelect = document.getElementById('rate-type-select');
+        const headerHeightSelect = document.getElementById('header-height-select');
+        const shelfTypeSelect = document.getElementById('shelf-type-select');
         const widthInput = document.getElementById('wall-width');
         const heightInput = document.getElementById('wall-height');
         const errorMessage = document.getElementById('error-message');
@@ -525,9 +854,6 @@
         const itemWiseBomOutput = document.getElementById('item-wise-bom-output');
         const itemWiseBomContainer = document.getElementById('item-wise-bom-container');
         const finalCalculationSection = document.getElementById('final-calculation-section');
-        const bomSubTotalDisplay = document.getElementById('bom-sub-total-display');
-        const marginMultiplier = document.getElementById('margin-multiplier');
-        const finalTotalCell = document.getElementById('final-total');
 
 
         // --- EVENT LISTENERS ---
@@ -535,12 +861,12 @@
         printBtn.addEventListener('click', () => window.print());
         sectionsContainer.addEventListener('input', handleBoqCellChange);
         itemWiseBomContainer.addEventListener('input', handleItemWiseBomCellChange);
-        marginMultiplier.addEventListener('input', recalculateAll);
+        finalCalculationSection.addEventListener('input', updateFinalTotal);
         brandSelect.addEventListener('change', toggleRateTypeSelector);
 
         // --- FUNCTIONS ---
         function toggleRateTypeSelector() {
-            if (brandSelect.value === 'Parx' || brandSelect.value === 'Ready to Wear') {
+            if (['Parx', 'Ready to Wear', 'Park Avenue'].includes(brandSelect.value)) {
                 rateTypeContainer.classList.remove('hidden');
             } else {
                 rateTypeContainer.classList.add('hidden');
@@ -574,6 +900,10 @@
             const width = parseFloat(widthInput.value);
             const height = parseFloat(heightInput.value);
             const brand = brandSelect.value;
+            const options = {
+                headerHeight: parseFloat(headerHeightSelect.value),
+                shelfType: shelfTypeSelect.value
+            };
 
             if (isNaN(width) || isNaN(height) || width <= 0 || height <= 0) {
                 errorMessage.textContent = 'Please enter valid, positive numbers for dimensions.';
@@ -581,12 +911,15 @@
                 return;
             }
             errorMessage.textContent = '';
-            fullCalculationFlow(width, height, brand);
+            fullCalculationFlow(width, height, brand, options);
         }
 
-        function fullCalculationFlow(width, height, brand) {
+        function fullCalculationFlow(width, height, brand, options) {
             const data = BRAND_DATA[brand];
-            if (!data) return;
+            if (!data) {
+                console.error(`No data for brand: ${brand}`);
+                return;
+            }
 
             // Clear all outputs
             sectionsContainer.innerHTML = '';
@@ -603,26 +936,26 @@
 
             for (const [title, items] of Object.entries(sectionMappings)) {
                 if (items && items.length > 0) {
-                    const sectionHTML = createSectionHTML(title, items, width, height, wallConfig, data.getRate, rateType, brand);
+                    const sectionHTML = createSectionHTML(title, items, width, height, wallConfig, data.getRate, rateType, brand, options);
                     if (sectionHTML) sectionsContainer.insertAdjacentHTML('beforeend', sectionHTML);
                 }
             }
             boqOutput.classList.remove('hidden');
 
-            // Step 2: Generate Item-wise BOM from BOQ
+            // Step 2: Trigger full recalculation cascade
             recalculateAll();
         }
 
-        function createSectionHTML(title, items, width, height, wallConfig, getRateFn, rateType, brand) {
+        function createSectionHTML(title, items, width, height, wallConfig, getRateFn, rateType, brand, options) {
             let rowsHTML = '';
 
             items.forEach(item => {
-                const qty = item.qty(width, height, wallConfig);
+                const qty = item.qty(width, height, wallConfig, options);
                 if (qty <= 0) return;
 
-                const l = item.l(width, height, wallConfig);
-                const w = item.w(width, height, wallConfig);
-                const h = item.h(width, height, wallConfig);
+                const l = item.l(width, height, wallConfig, options);
+                const w = item.w(width, height, wallConfig, options);
+                const h = item.h(width, height, wallConfig, options);
 
                 let rate = item.rate;
                 let sourceDimText = 'N/A';
@@ -682,7 +1015,7 @@
         `;
         }
 
-        function generateAndDisplayItemWiseBOM(brand, fixtures) {
+        function generateAndDisplayItemWiseBOM(brand, fixtures, options) {
             itemWiseBomContainer.innerHTML = '';
             const bomData = BOM_DATA[brand];
             if (!bomData) return;
@@ -694,7 +1027,7 @@
                 let rowsHTML = '';
 
                 bomData.materials.forEach(mat => {
-                    const baseQty = mat.calculateBaseQty(fixture);
+                    const baseQty = mat.calculateBaseQty(fixture, options);
                     if (baseQty > 0) {
                         rowsHTML += `
                         <tr class="border-b border-gray-700" data-mat-item="${mat.item}">
@@ -836,7 +1169,11 @@
             // Recalculate Item-Wise BOM and get its data
             const brand = brandSelect.value;
             const fixtures = getFixturesFromBOQTable();
-            generateAndDisplayItemWiseBOM(brand, fixtures);
+            const options = {
+                headerHeight: parseFloat(headerHeightSelect.value),
+                shelfType: shelfTypeSelect.value
+            };
+            generateAndDisplayItemWiseBOM(brand, fixtures, options);
 
             const itemWiseRmcData = {};
 
@@ -932,15 +1269,74 @@
             const subTotalCell = bomContainer.querySelector('#bom-sub-total-cell');
             if (subTotalCell) subTotalCell.textContent = formattedTotal;
 
-            bomSubTotalDisplay.textContent = formattedTotal;
+            const bomSubTotalDisplay = document.getElementById('bom-sub-total-display');
+            if (bomSubTotalDisplay) bomSubTotalDisplay.textContent = formattedTotal;
+
             updateFinalTotal();
         }
 
         function updateFinalTotal() {
-            const bomSubTotal = parseFloat(bomSubTotalDisplay.textContent.replace(/[₹,]/g, '')) || 0;
-            const multiplier = parseFloat(marginMultiplier.textContent) || 0;
-            const finalTotal = bomSubTotal * multiplier;
-            finalTotalCell.textContent = `₹ ${finalTotal.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+            const bomSubTotal = parseFloat(document.getElementById('bom-sub-total-display').textContent.replace(/[₹,]/g, '')) || 0;
+
+            const formatCurrency = (value) => `₹ ${value.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+
+            // Read all percentages
+            const landingPricePercent = parseFloat(document.getElementById('landing-price-percent').textContent) || 0;
+            const wastagePercent = parseFloat(document.getElementById('wastage-percent').textContent) || 0;
+            const indirectMaterialPercent = parseFloat(document.getElementById('indirect-material-percent').textContent) || 0;
+            const labourPercent = parseFloat(document.getElementById('labour-percent').textContent) || 0;
+
+            // Calculate first block of values
+            const landingPriceValue = bomSubTotal * (landingPricePercent / 100);
+            const wastageValue = bomSubTotal * (wastagePercent / 100);
+            const indirectMaterialValue = bomSubTotal * (indirectMaterialPercent / 100);
+            const labourValue = bomSubTotal * (labourPercent / 100);
+
+            // Update display for first block
+            document.getElementById('landing-price-value').textContent = formatCurrency(landingPriceValue);
+            document.getElementById('wastage-value').textContent = formatCurrency(wastageValue);
+            document.getElementById('indirect-material-value').textContent = formatCurrency(indirectMaterialValue);
+            document.getElementById('labour-value').textContent = formatCurrency(labourValue);
+
+            // Calculate Subtotal 1
+            const subtotal1 = bomSubTotal + landingPriceValue + wastageValue + indirectMaterialValue + labourValue;
+            document.getElementById('subtotal-1-value').textContent = formatCurrency(subtotal1);
+
+            // Read second block percentages
+            const ohPercent = parseFloat(document.getElementById('oh-percent').textContent) || 0;
+            const profitPercent = parseFloat(document.getElementById('profit-percent').textContent) || 0;
+
+            // Calculate second block values
+            const ohValue = subtotal1 * (ohPercent / 100);
+            const profitValue = subtotal1 * (profitPercent / 100);
+
+            // Update display for second block
+            document.getElementById('oh-value').textContent = formatCurrency(ohValue);
+            document.getElementById('profit-value').textContent = formatCurrency(profitValue);
+
+            // Calculate Subtotal 2
+            const subtotal2 = subtotal1 + ohValue + profitValue;
+            document.getElementById('subtotal-2-value').textContent = formatCurrency(subtotal2);
+
+            // Read third block percentages
+            const packingPercent = parseFloat(document.getElementById('packing-percent').textContent) || 0;
+            const unloadingPercent = parseFloat(document.getElementById('unloading-percent').textContent) || 0;
+            const installPercent = parseFloat(document.getElementById('install-percent').textContent) || 0;
+
+            // Calculate third block values
+            const packingValue = subtotal2 * (packingPercent / 100);
+            const unloadingValueRaw = subtotal2 * (unloadingPercent / 100);
+            const unloadingValue = Math.max(unloadingValueRaw, 6000);
+            const installValue = subtotal2 * (installPercent / 100);
+
+            // Update display for third block
+            document.getElementById('packing-value').textContent = formatCurrency(packingValue);
+            document.getElementById('unloading-value').textContent = formatCurrency(unloadingValue);
+            document.getElementById('install-value').textContent = formatCurrency(installValue);
+
+            // Calculate Final Total
+            const finalTotal = subtotal2 + packingValue + unloadingValue + installValue;
+            document.getElementById('final-total').textContent = formatCurrency(finalTotal);
         }
     </script>
 </body>
