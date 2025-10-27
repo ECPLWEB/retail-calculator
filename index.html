@@ -14,8 +14,85 @@
             font-family: 'Inter', sans-serif;
         }
 
-        .recipe-card {
+        .recipe-card,
+        .summary-section {
             page-break-inside: avoid;
+        }
+
+        @media print {
+            body {
+                background-color: #fff !important;
+                color: #000 !important;
+            }
+
+            header,
+            .input-form {
+                display: none !important;
+            }
+
+            .recipe-card,
+            .summary-section {
+                box-shadow: none !important;
+                border: 1px solid #ccc;
+                margin-top: 1.5rem;
+            }
+
+            .recipe-card h3,
+            .summary-section h2 {
+                background-color: #eee !important;
+                color: #000 !important;
+            }
+
+            .recipe-card table thead,
+            .summary-section table thead {
+                background-color: #f5f5f5 !important;
+            }
+
+            .recipe-card td,
+            .recipe-card th,
+            .summary-section td,
+            .summary-section th {
+                color: #000 !important;
+                border-color: #ccc !important;
+            }
+
+            .recipe-card tfoot div,
+            .summary-section tfoot div {
+                background-color: #eee !important;
+            }
+
+            .text-yellow-400 {
+                color: #000 !important;
+            }
+
+            .text-gray-400 {
+                color: #555 !important;
+            }
+
+            .bg-gray-800 {
+                background-color: #fff !important;
+            }
+
+            .bg-gray-700 {
+                background-color: #eee !important;
+            }
+
+            .bg-gray-700\/50 {
+                background-color: #f5f5f5 !important;
+            }
+
+            .border-gray-600 {
+                border-color: #ccc !important;
+            }
+
+            .border-gray-700 {
+                border-color: #ccc !important;
+            }
+
+            .text-gray-300 {
+                color: #333 !important;
+            }
+
         }
     </style>
 </head>
@@ -23,12 +100,14 @@
 <body class="bg-gray-900 text-white min-h-screen antialiased p-4 sm:p-6 md:p-8">
 
     <div class="w-full max-w-7xl mx-auto">
+        <!-- Header -->
         <header class="text-center mb-8">
-            <h1 class="text-3xl sm:text-4xl font-bold text-white tracking-tight">Unit Recipe Generator</h1>
+            <h1 class="text-3xl sm:text-4xl font-bold text-white tracking-tight">Unit Recipe Generator v2 - with Summary table</h1>
             <p id="loading-status" class="mt-2 text-lg text-yellow-400">Loading rate data...</p>
         </header>
 
-        <div class="bg-gray-800 p-6 rounded-xl shadow-lg mb-8 max-w-2xl mx-auto">
+        <!-- Input Form -->
+        <div class="bg-gray-800 p-6 rounded-xl shadow-lg mb-8 max-w-2xl mx-auto input-form">
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6 items-end">
                 <div class="md:col-span-2">
                     <label for="brand-select" class="block text-sm font-medium text-gray-300 mb-1">Select Brand</label>
@@ -47,7 +126,14 @@
             </div>
         </div>
 
+        <!-- Recipes Output -->
         <div id="recipes-output" class="space-y-8">
+            <!-- Unit recipes will be generated here -->
+        </div>
+
+        <!-- Summary Table Output -->
+        <div id="summary-table-output" class="mt-12">
+            <!-- Summary table will be generated here -->
         </div>
 
     </div>
@@ -75,6 +161,7 @@
 
 
         // --- BILL OF MATERIALS CONFIGURATION (ALL BRANDS) ---
+        // Updated BOM Data generation function
         const getBomData = () => ({
             "Parx": {
                 materials: [
@@ -83,7 +170,7 @@
                     { item: "25mm MDF BSL (for Duco Pattern)", unit: "SqFt", rate: RAW_MATERIAL_RATES.MDF_25_BSL_DUCO, wastage: 15, calculateBaseQty: (f) => (['Header', 'Side Portals'].includes(f.item) && f.l >= 50) ? (f.l * f.h) * SQMM_TO_SQFT : 0 },
                     { item: "Light Blue Laminate (1mm)", unit: "SqFt", rate: RAW_MATERIAL_RATES.LAMINATE_LIGHT_BLUE, wastage: 15, calculateBaseQty: (f) => ['Header', 'Side Portals', 'Plinth'].includes(f.item) ? (2 * (f.l * f.w + f.l * f.h + f.w * f.h)) * SQMM_TO_SQFT : (f.item === 'Drawers' ? (f.l * f.w) + (f.l * f.h) : 0) * SQMM_TO_SQFT },
                     { item: "Duco Paint (for Pattern)", unit: "SqFt", rate: RAW_MATERIAL_RATES.DUCO_PAINT, wastage: 15, calculateBaseQty: (f) => !['Header', 'Side Portals'].includes(f.item) || f.l < 50 ? 0 : (f.l * f.h * 1.5) * SQMM_TO_SQFT },
-                    { item: "PVC Edge Banding (25mm)", unit: "RFt", rate: RAW_MATERIAL_RATES.PVC_EDGE_BAND_25MM, wastage: 0, calculateBaseQty: (f) => ['Header', 'Side Portals', 'Plinth', 'Shelves', 'Drawers'].includes(f.item) ? (2 * (f.l + f.w)) * MM_TO_FT : 0 },
+                    { item: "PVC Edge Banding (25mm)", unit: "RFt", rate: RAW_MATERIAL_RATES.PVC_EDGE_BAND_25MM, wastage: 0, calculateBaseQty: (f) => { let perimeter = 0; if (['Header', 'Side Portals', 'Plinth', 'Shelves', 'Drawers'].includes(f.item)) perimeter = (2 * (f.l + f.w)); if (f.item === 'Back Panels') perimeter = (2 * (f.l + f.h)); return perimeter * MM_TO_FT; } }, // Added Back Panel
                     { item: "Aluminium Channel Profile", unit: "RFt", rate: RAW_MATERIAL_RATES.ALUMINIUM_CHANNEL_PROFILE, wastage: 0, calculateBaseQty: (f) => f.item === 'Channels' ? 8 : 0 },
                     { item: "Backclips for Accessories", unit: "Nos", rate: RAW_MATERIAL_RATES.BACKCLIPS, wastage: 0, calculateBaseQty: (f) => ['Straight Arm', 'Backbar'].includes(f.item) ? 2 : 0 },
                     { item: "MS Pipe (15x30mm, 2mm thk)", unit: "Kg", rate: RAW_MATERIAL_RATES.MS_PIPE_15X30_2MM, wastage: 0, calculateBaseQty: (f) => { const w = 0.43; if (f.item === 'Straight Arm') return 4 * w; if (f.item === 'Backbar') return (f.l * MM_TO_FT) * w; return 0; } },
@@ -101,18 +188,18 @@
                 materials: [
                     { item: "18mm MDF BSL (Charcoal/Off-white)", unit: "SqFt", rate: RAW_MATERIAL_RATES.MDF_18_BSL_OWHITE, wastage: 15, calculateBaseQty: (f) => ['Header', 'Side Portals', 'Plinth', 'Drawers', 'Back Panels', 'Shelves'].includes(f.item) ? (2 * (f.l * f.w + f.l * f.h + f.w * f.h)) * SQMM_TO_SQFT : 0 },
                     { item: "25x25mm AL Pipe (for Pattern)", unit: "RFt", rate: RAW_MATERIAL_RATES.AL_PIPE_50X50, wastage: 0, calculateBaseQty: (f) => { if (!['Header', 'Side Portals'].includes(f.item) || f.l < 50) return 0; return (Math.ceil(f.h / 50.4) * f.l) * MM_TO_FT; } },
-                    { item: "PVC Edge Banding (25mm)", unit: "RFt", rate: RAW_MATERIAL_RATES.PVC_EDGE_BAND_25MM, wastage: 0, calculateBaseQty: (f) => ['Header', 'Side Portals', 'Plinth', 'Shelves', 'Drawers', 'Back Panels'].includes(f.item) ? (2 * (f.l + f.w)) * MM_TO_FT : 0 },
+                    { item: "PVC Edge Banding (25mm)", unit: "RFt", rate: RAW_MATERIAL_RATES.PVC_EDGE_BAND_25MM, wastage: 0, calculateBaseQty: (f) => { let perimeter = 0; if (['Header', 'Side Portals', 'Plinth', 'Shelves', 'Drawers'].includes(f.item)) perimeter = (2 * (f.l + f.w)); if (f.item === 'Back Panels') perimeter = (2 * (f.l + f.h)); return perimeter * MM_TO_FT; } }, // Added Back Panel
                     { item: "Aluminium Channel Profile", unit: "RFt", rate: RAW_MATERIAL_RATES.ALUMINIUM_CHANNEL_PROFILE, wastage: 0, calculateBaseQty: (f) => f.item === 'Channels' ? 8 : 0 },
                     { item: "Backclips for Accessories", unit: "Nos", rate: RAW_MATERIAL_RATES.BACKCLIPS, wastage: 0, calculateBaseQty: (f) => ['Straight Arm', 'Backbar'].includes(f.item) ? 2 : 0 },
                     { item: "MS Pipe (15x30mm, 2mm thk)", unit: "Kg", rate: RAW_MATERIAL_RATES.MS_PIPE_15X30_2MM, wastage: 0, calculateBaseQty: (f) => { const w = 0.43; if (f.item === 'Straight Arm') return 4 * w; if (f.item === 'Backbar') return (f.l * MM_TO_FT) * w; return 0; } },
                     { item: "MS Shelf Bracket Cost", unit: "Nos", rate: RAW_MATERIAL_RATES.MS_SHELF_BRACKET, wastage: 0, calculateBaseQty: (f) => f.item === 'Shelf Bracket' ? 1 : 0 },
                     { item: "Powder Coating", unit: "Lump Sum Cost", rate: RAW_MATERIAL_RATES.POWDER_COATING_COST, wastage: 0, calculateBaseQty: (f) => { const r = 25, s = 50; if (f.item === 'Channels') return ((2 * (f.l + f.w) * f.h) * SQMM_TO_SQFT) * s; if (['Header', 'Side Portals'].includes(f.item)) return ((Math.ceil(f.h / 50.4) * f.l) * MM_TO_FT) * r; if (f.item === 'Backbar') return (f.l * MM_TO_FT) * r; if (f.item === 'Straight Arm') return 4 * r; if (f.item === 'Shelf Bracket') return (350 * MM_TO_FT) * r; return 0; } },
                     { item: "Finished 3D Acrylic Signage", unit: "SqFt", rate: RAW_MATERIAL_RATES.ACRYLIC_SIGNAGE_SQFT, wastage: 0, calculateBaseQty: (f) => f.item === 'Signage' ? (600 * 300) * SQMM_TO_SQFT : 0 },
-                    { item: "Aluminium LED Profile", unit: "RFt", rate: RAW_MATERIAL_RATES.ALUMINIUM_LED_PROFILE, wastage: 0, calculateBaseQty: (f, o) => { if ((o.shelfType === 'lit' && f.item === 'Shelves') || f.item === 'Header') return f.l * MM_TO_FT; if (f.item === 'Side Portals') return f.h * MM_TO_FT; return 0; } },
-                    { item: "LED Light Strip (4000K)", unit: "RFt", rate: RAW_MATERIAL_RATES.LED_STRIP_4000K, wastage: 0, calculateBaseQty: (f, o) => { if ((o.shelfType === 'lit' && f.item === 'Shelves') || f.item === 'Header') return f.l * MM_TO_FT; if (f.item === 'Side Portals') return f.h * MM_TO_FT; return 0; } },
-                    { item: "1mm Wire (for fixture)", unit: "RFt", rate: RAW_MATERIAL_RATES.WIRE_1MM, wastage: 0, calculateBaseQty: (f, o) => (o.shelfType === 'lit' && f.item === 'Shelves') || ['Header', 'Side Portals'].includes(f.item) ? 3.28 : 0 },
-                    { item: "1.5mm Wire (for driver)", unit: "Meter", rate: RAW_MATERIAL_RATES.WIRE_1_5MM, wastage: 0, calculateBaseQty: (f, o) => { if (o.shelfType === 'lit' && f.item === 'Shelves') return 0.8; if (['Header', 'Side Portals'].includes(f.item)) return 2.0; return 0; } },
-                    { item: "LED Driver", unit: "Nos", rate: RAW_MATERIAL_RATES.LED_DRIVER, wastage: 0, calculateBaseQty: (f, o) => { if (o.shelfType === 'lit' && f.item === 'Shelves') return 0.2; if (['Header', 'Side Portals'].includes(f.item)) return 1.0; return 0; } }
+                    { item: "Aluminium LED Profile", unit: "RFt", rate: RAW_MATERIAL_RATES.ALUMINIUM_LED_PROFILE, wastage: 0, calculateBaseQty: (f, o) => { if (f.item === 'Side Portals' && f.l === 18) return 0; if ((o.shelfType === 'lit' && f.item === 'Shelves') || f.item === 'Header') return f.l * MM_TO_FT; if (f.item === 'Side Portals') return f.h * MM_TO_FT; return 0; } }, // Added 18mm check
+                    { item: "LED Light Strip (4000K)", unit: "RFt", rate: RAW_MATERIAL_RATES.LED_STRIP_4000K, wastage: 0, calculateBaseQty: (f, o) => { if (f.item === 'Side Portals' && f.l === 18) return 0; if ((o.shelfType === 'lit' && f.item === 'Shelves') || f.item === 'Header') return f.l * MM_TO_FT; if (f.item === 'Side Portals') return f.h * MM_TO_FT; return 0; } }, // Added 18mm check
+                    { item: "1mm Wire (for fixture)", unit: "RFt", rate: RAW_MATERIAL_RATES.WIRE_1MM, wastage: 0, calculateBaseQty: (f, o) => { if (f.item === 'Side Portals' && f.l === 18) return 0; return (o.shelfType === 'lit' && f.item === 'Shelves') || ['Header', 'Side Portals'].includes(f.item) ? 3.28 : 0; } }, // Added 18mm check
+                    { item: "1.5mm Wire (for driver)", unit: "Meter", rate: RAW_MATERIAL_RATES.WIRE_1_5MM, wastage: 0, calculateBaseQty: (f, o) => { if (f.item === 'Side Portals' && f.l === 18) return 0; if (o.shelfType === 'lit' && f.item === 'Shelves') return 0.8; if (['Header', 'Side Portals'].includes(f.item)) return 2.0; return 0; } }, // Added 18mm check
+                    { item: "LED Driver", unit: "Nos", rate: RAW_MATERIAL_RATES.LED_DRIVER, wastage: 0, calculateBaseQty: (f, o) => { if (f.item === 'Side Portals' && f.l === 18) return 0; if (o.shelfType === 'lit' && f.item === 'Shelves') return 0.2; if (['Header', 'Side Portals'].includes(f.item)) return 1.0; return 0; } } // Added 18mm check
                 ]
             },
             "Ready to Wear": {
@@ -123,11 +210,11 @@
                     { item: "Cherry Walnut Laminate", unit: "SqFt", rate: RAW_MATERIAL_RATES.LAMINATE_CHERRY_WALNUT, wastage: 15, calculateBaseQty: (f) => { let a = 0; if (f.item === 'Header') a = (2 * (f.l * f.h + f.l * f.w)); if (f.item === 'Shelves') a = 2 * (f.l * f.w); if (f.item === 'Drawers') a = (f.l * f.h + f.l * f.w + 2 * f.w * f.h); if (f.item === 'Plinth') a = (2 * (f.l * f.h + f.l * f.w)); return a * SQMM_TO_SQFT; } },
                     { item: "Denim Splash Laminate", unit: "SqFt", rate: RAW_MATERIAL_RATES.LAMINATE_DENIM_SPLASH, wastage: 15, calculateBaseQty: (f) => f.item === 'Back Panels' ? (f.l * f.h) * SQMM_TO_SQFT : 0 },
                     { item: "25x25mm MS Pipe", unit: "Kg", rate: RAW_MATERIAL_RATES.MS_PIPE_25X25, wastage: 15, calculateBaseQty: (f) => f.item === 'Header' ? ((2 * (f.l + f.h)) * MM_TO_FT) * 0.43 : 0 },
-                    { item: "Powder Coating", unit: "Lump Sum Cost", rate: RAW_MATERIAL_RATES.POWDER_COATING_COST, wastage: 0, calculateBaseQty: (f) => { const r = 25; if (['Header', 'Side Portals', 'Channels'].includes(f.item)) return (f.h * MM_TO_FT) * r; if (f.item === 'Straight Arm') return 4 * r; if (f.item === 'Backbar') return (f.l * MM_TO_FT) * r; if (f.item === 'Shelf Bracket') return (350 * MM_TO_FT) * r; return 0; } },
-                    { item: "Aluminium LED Profile", unit: "RFt", rate: RAW_MATERIAL_RATES.ALUMINIUM_LED_PROFILE, wastage: 0, calculateBaseQty: (f) => f.item === 'Side Portals' ? f.h * MM_TO_FT : 0 },
-                    { item: "LED Light Strip (4000K)", unit: "RFt", rate: RAW_MATERIAL_RATES.LED_STRIP_4000K, wastage: 0, calculateBaseQty: (f) => f.item === 'Side Portals' ? f.h * MM_TO_FT : 0 },
-                    { item: "1mm Wire (for fixture)", unit: "RFt", rate: RAW_MATERIAL_RATES.WIRE_1MM, wastage: 0, calculateBaseQty: (f) => f.item === 'Side Portals' ? 3.28 : 0 },
-                    { item: "LED Driver", unit: "Nos", rate: RAW_MATERIAL_RATES.LED_DRIVER, wastage: 0, calculateBaseQty: (f) => f.item === 'Side Portals' ? 1 : 0 },
+                    { item: "Powder Coating", unit: "Lump Sum Cost", rate: RAW_MATERIAL_RATES.POWDER_COATING_COST, wastage: 0, calculateBaseQty: (f) => { const r = 25; if (f.item === 'Header') return (2 * (f.l + f.h)) * MM_TO_FT * r; if (f.item === 'Side Portals' && f.l !== 18) return (f.h * MM_TO_FT) * r; if (f.item === 'Channels') return (f.h * MM_TO_FT) * r; if (f.item === 'Straight Arm') return 4 * r; if (f.item === 'Backbar') return (f.l * MM_TO_FT) * r; if (f.item === 'Shelf Bracket') return (350 * MM_TO_FT) * r; return 0; } }, // Added 18mm check for Side Portal PC
+                    { item: "Aluminium LED Profile", unit: "RFt", rate: RAW_MATERIAL_RATES.ALUMINIUM_LED_PROFILE, wastage: 0, calculateBaseQty: (f) => (f.item === 'Side Portals' && f.l !== 18) ? f.h * MM_TO_FT : 0 }, // Added 18mm check
+                    { item: "LED Light Strip (4000K)", unit: "RFt", rate: RAW_MATERIAL_RATES.LED_STRIP_4000K, wastage: 0, calculateBaseQty: (f) => (f.item === 'Side Portals' && f.l !== 18) ? f.h * MM_TO_FT : 0 }, // Added 18mm check
+                    { item: "1mm Wire (for fixture)", unit: "RFt", rate: RAW_MATERIAL_RATES.WIRE_1MM, wastage: 0, calculateBaseQty: (f) => (f.item === 'Side Portals' && f.l !== 18) ? 3.28 : 0 }, // Added 18mm check
+                    { item: "LED Driver", unit: "Nos", rate: RAW_MATERIAL_RATES.LED_DRIVER, wastage: 0, calculateBaseQty: (f) => (f.item === 'Side Portals' && f.l !== 18) ? 1 : 0 }, // Added 18mm check
                     { item: "Aluminium Channel Profile", unit: "RFt", rate: RAW_MATERIAL_RATES.ALUMINIUM_CHANNEL_PROFILE, wastage: 0, calculateBaseQty: (f) => f.item === 'Channels' ? 8 : 0 },
                     { item: "Backclips for Accessories", unit: "Nos", rate: RAW_MATERIAL_RATES.BACKCLIPS, wastage: 0, calculateBaseQty: (f) => ['Straight Arm', 'Backbar'].includes(f.item) ? 2 : 0 },
                     { item: "MS Pipe (15x30mm, 2mm thk)", unit: "Kg", rate: RAW_MATERIAL_RATES.MS_PIPE_15X30_2MM, wastage: 0, calculateBaseQty: (f) => { const w = 0.43; if (f.item === 'Straight Arm') return 4 * w; if (f.item === 'Backbar') return (f.l * MM_TO_FT) * w; return 0; } },
@@ -141,10 +228,10 @@
                     { item: "Misty Pine Oak Laminate", unit: "SqFt", rate: RAW_MATERIAL_RATES.LAMINATE_PINE_OAK, wastage: 15, calculateBaseQty: (f) => f.item === 'Drawers' ? (f.l * f.w) * SQMM_TO_SQFT : 0 },
                     { item: "50x50mm AL Pipe", unit: "RFt", rate: RAW_MATERIAL_RATES.AL_PIPE_50X50, wastage: 15, calculateBaseQty: (f) => f.item === 'Header' ? (Math.ceil(f.l / 70) * 40) * MM_TO_FT : 0 },
                     { item: "Powder Coating", unit: "Lump Sum Cost", rate: RAW_MATERIAL_RATES.POWDER_COATING_COST, wastage: 0, calculateBaseQty: (f) => { const r = 25; let c = 0; if (f.item === 'Header') c += ((Math.ceil(f.l / 70) * 40) * MM_TO_FT) * r; if (f.item === 'Channels') c += (f.h * MM_TO_FT) * r; if (f.item === 'Straight Arm') return 4 * r; if (f.item === 'Backbar') return (f.l * MM_TO_FT) * r; if (f.item === 'Shelf Bracket') return (350 * MM_TO_FT) * r; return c; } },
-                    { item: "Aluminium LED Profile", unit: "RFt", rate: RAW_MATERIAL_RATES.ALUMINIUM_LED_PROFILE, wastage: 0, calculateBaseQty: (f) => f.item === 'Side Portals' ? f.h * MM_TO_FT : 0 },
-                    { item: "LED Light Strip (4000K)", unit: "RFt", rate: RAW_MATERIAL_RATES.LED_STRIP_4000K, wastage: 0, calculateBaseQty: (f) => f.item === 'Side Portals' ? f.h * MM_TO_FT : 0 },
-                    { item: "1mm Wire (for fixture)", unit: "RFt", rate: RAW_MATERIAL_RATES.WIRE_1MM, wastage: 0, calculateBaseQty: (f) => f.item === 'Side Portals' ? 3.28 : 0 },
-                    { item: "LED Driver", unit: "Nos", rate: RAW_MATERIAL_RATES.LED_DRIVER, wastage: 0, calculateBaseQty: (f) => f.item === 'Side Portals' ? 1 : 0 },
+                    { item: "Aluminium LED Profile", unit: "RFt", rate: RAW_MATERIAL_RATES.ALUMINIUM_LED_PROFILE, wastage: 0, calculateBaseQty: (f) => (f.item === 'Side Portals' && f.l !== 18) ? f.h * MM_TO_FT : 0 }, // Added 18mm check
+                    { item: "LED Light Strip (4000K)", unit: "RFt", rate: RAW_MATERIAL_RATES.LED_STRIP_4000K, wastage: 0, calculateBaseQty: (f) => (f.item === 'Side Portals' && f.l !== 18) ? f.h * MM_TO_FT : 0 }, // Added 18mm check
+                    { item: "1mm Wire (for fixture)", unit: "RFt", rate: RAW_MATERIAL_RATES.WIRE_1MM, wastage: 0, calculateBaseQty: (f) => (f.item === 'Side Portals' && f.l !== 18) ? 3.28 : 0 }, // Added 18mm check
+                    { item: "LED Driver", unit: "Nos", rate: RAW_MATERIAL_RATES.LED_DRIVER, wastage: 0, calculateBaseQty: (f) => (f.item === 'Side Portals' && f.l !== 18) ? 1 : 0 }, // Added 18mm check
                     { item: "Aluminium Channel Profile", unit: "RFt", rate: RAW_MATERIAL_RATES.ALUMINIUM_CHANNEL_PROFILE, wastage: 0, calculateBaseQty: (f) => f.item === 'Channels' ? 8 : 0 },
                     { item: "Backclips for Accessories", unit: "Nos", rate: RAW_MATERIAL_RATES.BACKCLIPS, wastage: 0, calculateBaseQty: (f) => ['Straight Arm', 'Backbar'].includes(f.item) ? 2 : 0 },
                     { item: "MS Pipe (15x30mm, 2mm thk)", unit: "Kg", rate: RAW_MATERIAL_RATES.MS_PIPE_15X30_2MM, wastage: 0, calculateBaseQty: (f) => { const w = 0.43; if (f.item === 'Straight Arm') return 4 * w; if (f.item === 'Backbar') return (f.l * MM_TO_FT) * w; return 0; } },
@@ -153,12 +240,12 @@
             }
         });
 
-
         // --- DOM ELEMENTS ---
         const brandSelect = document.getElementById('brand-select');
         const generateBtn = document.getElementById('generate-btn');
         const loadingStatus = document.getElementById('loading-status');
         const recipesOutput = document.getElementById('recipes-output');
+        const summaryTableOutput = document.getElementById('summary-table-output'); // Added
 
 
         // --- DATA LOADING & INITIALIZATION ---
@@ -166,14 +253,17 @@
 
         async function initializeApp() {
             try {
+                // Fetch both CSV files concurrently
                 const [rateContractResponse, materialRatesResponse] = await Promise.all([
                     fetch('rate_contract.csv'),
                     fetch('raw_material_rates.csv')
                 ]);
 
+                // Check if fetches were successful
                 if (!rateContractResponse.ok) throw new Error(`HTTP error fetching rate_contract.csv: ${rateContractResponse.status}`);
                 if (!materialRatesResponse.ok) throw new Error(`HTTP error fetching raw_material_rates.csv: ${materialRatesResponse.status}`);
 
+                // Read text content from responses
                 const rateContractText = await rateContractResponse.text();
                 const materialRatesText = await materialRatesResponse.text();
 
@@ -195,12 +285,14 @@
                 generateBtn.classList.remove('bg-blue-800', 'text-gray-400', 'cursor-not-allowed');
                 generateBtn.classList.add('bg-blue-600', 'hover:bg-blue-700', 'text-white');
 
+                // Add event listener for the generate button
                 generateBtn.addEventListener('click', () => {
                     const selectedBrand = brandSelect.value;
                     displayUnitRecipesForBrand(selectedBrand);
                 });
 
             } catch (error) {
+                // Display error if data loading fails
                 loadingStatus.textContent = 'Error: Could not load data files. Please check CSV files and console.';
                 loadingStatus.classList.add('text-red-400');
                 console.error("Failed to load or process CSV files:", error);
@@ -210,8 +302,9 @@
         // --- CORE LOGIC ---
         function displayUnitRecipesForBrand(brand) {
             recipesOutput.innerHTML = ''; // Clear previous results
+            summaryTableOutput.innerHTML = ''; // Clear previous summary
             const brandRateData = RATE_DATA_BY_BRAND[brand];
-            const BOM_CONFIG = getBomData();
+            const BOM_CONFIG = getBomData(); // Get the BOM data with loaded rates
             const brandBomData = BOM_CONFIG[brand];
 
             if (!brandRateData || !brandBomData) {
@@ -220,41 +313,62 @@
             }
 
             let allRecipesHTML = '';
+            let summaryData = []; // Array to hold data for the summary table
 
             // Loop through each item type in the rate contract (e.g., "SIDE PORTAL")
             for (const csvItemName in brandRateData) {
-                const bomItemName = CSV_TO_BOM_ITEM_MAP[csvItemName];
-                if (!bomItemName) continue;
+                const bomItemName = CSV_TO_BOM_ITEM_MAP[csvItemName]; // Map to consistent BOM name
+                if (!bomItemName) {
+                    console.warn(`No BOM mapping found for CSV item: ${csvItemName}`);
+                    continue;
+                }
 
                 const rateItems = brandRateData[csvItemName];
 
-                // Loop through each specific dimension of that item
+                // Loop through each specific dimension entry for that item type
                 rateItems.forEach(rateItem => {
-                    // Special handling for shelves to show both LIT and Non-LIT versions
+                    // Function to generate card and collect summary data
+                    const processRecipe = (options) => {
+                        const { html, summary } = generateRecipeCardHTML(brand, bomItemName, rateItem, brandBomData, options);
+                        if (html) {
+                            allRecipesHTML += html;
+                            summaryData.push(summary);
+                        }
+                    };
+
+                    // Special handling for shelves: generate both LIT and Non-LIT versions
                     if (bomItemName === 'Shelves') {
-                        allRecipesHTML += generateRecipeCardHTML(brand, bomItemName, rateItem, brandBomData, { shelfType: 'non-lit' });
-                        allRecipesHTML += generateRecipeCardHTML(brand, bomItemName, rateItem, brandBomData, { shelfType: 'lit' });
+                        processRecipe({ shelfType: 'non-lit' });
+                        processRecipe({ shelfType: 'lit' });
                     } else {
-                        allRecipesHTML += generateRecipeCardHTML(brand, bomItemName, rateItem, brandBomData, { shelfType: 'non-lit' }); // Default option
+                        // For other items, use a default option (shelfType doesn't matter here)
+                        processRecipe({ shelfType: 'non-lit' });
                     }
                 });
             }
 
-            recipesOutput.innerHTML = allRecipesHTML;
+            recipesOutput.innerHTML = allRecipesHTML; // Display all recipe cards
+            summaryTableOutput.innerHTML = generateSummaryTableHTML(summaryData); // Generate and display summary table
         }
 
 
         function generateRecipeCardHTML(brand, bomItemName, rateItem, brandBomData, options) {
+            // Create a 'fixture' object representing the current item from the rate contract
             const fixture = { item: bomItemName, l: rateItem.l, w: rateItem.w, h: rateItem.h };
             let rowsHTML = '';
             let totalCost = 0;
 
+            // Iterate through the materials defined for this brand in BOM_DATA
             brandBomData.materials.forEach(mat => {
+                // Calculate the base quantity needed for this specific fixture and options
                 const baseQty = mat.calculateBaseQty(fixture, options);
-                if (baseQty > 0) {
+                if (baseQty > 0) { // Only include materials with a calculated quantity > 0
+                    // Calculate final quantity including wastage
                     const finalQty = baseQty * (1 + mat.wastage / 100);
+                    // Calculate the cost for this material line item
                     const amount = finalQty * mat.rate;
-                    totalCost += amount;
+                    totalCost += amount; // Add to the total cost for this recipe card
+                    // Build the HTML table row for this material
                     rowsHTML += `
                         <tr class="border-b border-gray-700">
                             <td class="p-2">${mat.item}</td>
@@ -268,14 +382,21 @@
                 }
             });
 
-            if (!rowsHTML) return ''; // Don't generate a card if there are no materials
+            // If no materials were needed for this item/option combination, return empty
+            if (!rowsHTML) return { html: '', summary: null };
 
-            let title = `${bomItemName} (${fixture.l}L x ${fixture.w}W x ${fixture.h}H mm)`;
+            // Construct the title for the recipe card, including dimensions and LIT/Non-LIT status for shelves
+            const sizeString = `(${fixture.l}L x ${fixture.w}W x ${fixture.h}H mm)`;
+            let title = `${bomItemName} ${sizeString}`;
+            let summaryName = title; // Base name for summary
             if (bomItemName === 'Shelves') {
-                title += ` <span class="text-sm font-semibold uppercase ${options.shelfType === 'lit' ? 'text-yellow-400' : 'text-gray-400'}">${options.shelfType}</span>`;
+                const litStatus = options.shelfType === 'lit' ? 'LIT' : 'Non-LIT';
+                title += ` <span class="text-sm font-semibold uppercase ${options.shelfType === 'lit' ? 'text-yellow-400' : 'text-gray-400'}">${litStatus}</span>`;
+                summaryName += ` ${litStatus}`; // Add status to summary name
             }
 
-            return `
+            // Assemble the complete HTML for the recipe card
+            const html = `
             <div class="bg-gray-800 rounded-xl shadow-lg overflow-hidden recipe-card">
                 <h3 class="text-xl font-bold bg-gray-700 p-4">${title}</h3>
                 <div class="overflow-x-auto">
@@ -299,15 +420,61 @@
                     <span class="text-lg font-bold ml-2">₹ ${totalCost.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                 </div>
             </div>`;
+
+            // Data object for the summary table
+            const summary = { name: summaryName, size: sizeString, cost: totalCost };
+
+            return { html, summary };
+        }
+
+        // --- New function to generate the summary table ---
+        function generateSummaryTableHTML(summaryData) {
+            if (!summaryData || summaryData.length === 0) return ''; // Return empty if no data
+
+            let tableRowsHTML = '';
+            summaryData.forEach(item => {
+                const amount = Math.round(item.cost * 2); // Calculate Amount = Cost * 2, rounded
+                tableRowsHTML += `
+                     <tr class="border-b border-gray-700">
+                         <td class="p-3">${item.name}</td>
+                         
+                         <td class="p-3 text-right">₹ ${item.cost.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                         <td class="p-3 text-right font-semibold">₹ ${amount.toLocaleString('en-IN')}</td>
+                     </tr>
+                 `;
+            });
+
+            return `
+             <div class="bg-gray-800 rounded-xl shadow-lg overflow-hidden summary-section">
+                  <h2 class="text-2xl font-bold bg-gray-700 p-4">Summary</h2>
+                  <div class="overflow-x-auto">
+                      <table class="w-full">
+                          <thead>
+                              <tr class="border-b border-gray-600 bg-gray-700/50">
+                                  <th class="p-3 text-left font-semibold w-1/2">Item Name & Size</th>
+
+                                  <th class="p-3 text-right font-semibold">Total Material Cost (₹)</th>
+                                  <th class="p-3 text-right font-semibold">Amount (₹)</th>
+                              </tr>
+                          </thead>
+                          <tbody>
+                              ${tableRowsHTML}
+                          </tbody>
+                      </table>
+                  </div>
+              </div>
+             `;
         }
 
 
         // --- UTILITY FUNCTIONS ---
         function parseCSV(text) {
             const lines = text.trim().split('\n');
+            if (lines.length < 1) return []; // Handle empty file
             const headers = lines[0].split(',').map(h => h.trim());
             const data = [];
             for (let i = 1; i < lines.length; i++) {
+                if (lines[i].trim() === '') continue; // Skip empty lines
                 const values = lines[i].split(',').map(v => v.trim());
                 if (values.length === headers.length) {
                     const entry = {};
@@ -315,6 +482,8 @@
                         entry[header] = values[index];
                     });
                     data.push(entry);
+                } else {
+                    console.warn(`Skipping line ${i + 1} due to incorrect number of columns.`);
                 }
             }
             return data;
@@ -324,6 +493,7 @@
             const groupedData = {};
             parsedData.forEach(row => {
                 const { Brand, Item, L, W, H, FinalRate, ECPLRate } = row;
+                if (!Brand || !Item) return; // Skip rows missing essential data
                 if (!groupedData[Brand]) {
                     groupedData[Brand] = {};
                 }
@@ -331,12 +501,13 @@
                 if (!groupedData[Brand][cleanItem]) {
                     groupedData[Brand][cleanItem] = [];
                 }
+                // Provide default 0 if parsing fails
                 groupedData[Brand][cleanItem].push({
-                    l: parseFloat(L),
-                    w: parseFloat(W),
-                    h: parseFloat(H),
-                    finalRate: parseFloat(FinalRate),
-                    ecplRate: parseFloat(ECPLRate)
+                    l: parseFloat(L) || 0,
+                    w: parseFloat(W) || 0,
+                    h: parseFloat(H) || 0,
+                    finalRate: parseFloat(FinalRate) || 0,
+                    ecplRate: parseFloat(ECPLRate) || 0
                 });
             });
             return groupedData;
@@ -346,9 +517,14 @@
             const rates = {};
             parsedData.forEach(row => {
                 if (row.MaterialKey && row.Rate) {
-                    rates[row.MaterialKey.trim()] = parseFloat(row.Rate);
+                    // Provide default 0 if parsing fails
+                    rates[row.MaterialKey.trim()] = parseFloat(row.Rate) || 0;
                 }
             });
+            // Log missing rates for debugging
+            Object.keys(rates).forEach(key => {
+                if (isNaN(rates[key])) console.warn(`Raw material rate for ${key} is not a valid number.`);
+            })
             return rates;
         }
     </script>
