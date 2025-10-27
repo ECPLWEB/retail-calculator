@@ -101,7 +101,7 @@
     <div class="w-full max-w-7xl mx-auto">
         <!-- Header -->
         <header class="text-center mb-8">
-            <h1 class="text-3xl sm:text-4xl font-bold text-white tracking-tight">Unit Recipe Generator v3 - with Summary</h1>
+            <h1 class="text-3xl sm:text-4xl font-bold text-white tracking-tight">Unit Recipe Generator</h1>
             <p id="loading-status" class="mt-2 text-lg text-yellow-400">Loading rate data...</p>
         </header>
 
@@ -143,6 +143,7 @@
         const MM_TO_FT = 1 / 304.8;
         let RATE_DATA_BY_BRAND = {};
         let RAW_MATERIAL_RATES = {}; // Now stores { rate: X, wastage: Y }
+        const DEFAULT_MATERIAL_DATA = { rate: 0, wastage: 0 }; // Default value for missing materials
 
         const CSV_TO_BOM_ITEM_MAP = {
             "SIDE PORTAL": "Side Portals", "BACK PANEL": "Back Panels", "SHELVE": "Shelves",
@@ -153,81 +154,84 @@
 
 
         // --- BILL OF MATERIALS CONFIGURATION (ALL BRANDS) ---
-        // Accesses RAW_MATERIAL_RATES.MATERIAL_KEY.rate and .wastage
+        // Accesses RAW_MATERIAL_RATES.MATERIAL_KEY.rate and .wastage, with fallbacks
+        // Helper function to safely get material data
+        const getMaterialData = (key) => RAW_MATERIAL_RATES[key] || DEFAULT_MATERIAL_DATA;
+
         const getBomData = () => ({
             "Parx": {
                 materials: [
-                    { item: "18mm MDF OSL (Off-white)", unit: "SqFt", rate: RAW_MATERIAL_RATES.MDF_18_OSL_OWHITE.rate, wastage: RAW_MATERIAL_RATES.MDF_18_OSL_OWHITE.wastage, calculateBaseQty: (f) => ['Header', 'Side Portals', 'Plinth'].includes(f.item) ? (2 * (f.l * f.w + f.l * f.h + f.w * f.h)) * SQMM_TO_SQFT : (f.item === 'Drawers' ? (f.l * f.w) + (f.l * f.h) : 0) * SQMM_TO_SQFT },
-                    { item: "18mm MDF BSL (Off-white)", unit: "SqFt", rate: RAW_MATERIAL_RATES.MDF_18_BSL_OWHITE.rate, wastage: RAW_MATERIAL_RATES.MDF_18_BSL_OWHITE.wastage, calculateBaseQty: (f) => { let a = 0; if (f.item === 'Back Panels') a = (f.l * f.h); if (f.item === 'Drawers') a = (2 * f.w * f.h) + (f.l * f.h); if (f.item === 'Shelves') a = (f.l * f.w); return a * SQMM_TO_SQFT; } },
-                    { item: "25mm MDF BSL (for Duco Pattern)", unit: "SqFt", rate: RAW_MATERIAL_RATES.MDF_25_BSL_DUCO.rate, wastage: RAW_MATERIAL_RATES.MDF_25_BSL_DUCO.wastage, calculateBaseQty: (f) => { if (f.item === 'Side Portals' && f.l < 51) return 0; return (['Header', 'Side Portals'].includes(f.item) && f.l >= 50) ? (f.l * f.h) * SQMM_TO_SQFT : 0 } }, // Added Parx Duco logic
-                    { item: "Light Blue Laminate (1mm)", unit: "SqFt", rate: RAW_MATERIAL_RATES.LAMINATE_LIGHT_BLUE.rate, wastage: RAW_MATERIAL_RATES.LAMINATE_LIGHT_BLUE.wastage, calculateBaseQty: (f) => ['Header', 'Side Portals', 'Plinth'].includes(f.item) ? (2 * (f.l * f.w + f.l * f.h + f.w * f.h)) * SQMM_TO_SQFT : (f.item === 'Drawers' ? (f.l * f.w) + (f.l * f.h) : 0) * SQMM_TO_SQFT },
-                    { item: "Duco Paint (for Pattern)", unit: "SqFt", rate: RAW_MATERIAL_RATES.DUCO_PAINT.rate, wastage: RAW_MATERIAL_RATES.DUCO_PAINT.wastage, calculateBaseQty: (f) => { if (f.item === 'Side Portals' && f.l < 51) return 0; return !['Header', 'Side Portals'].includes(f.item) || f.l < 50 ? 0 : (f.l * f.h * 1.5) * SQMM_TO_SQFT } }, // Added Parx Duco logic
-                    { item: "PVC Edge Banding (25mm)", unit: "RFt", rate: RAW_MATERIAL_RATES.PVC_EDGE_BAND_25MM.rate, wastage: RAW_MATERIAL_RATES.PVC_EDGE_BAND_25MM.wastage, calculateBaseQty: (f) => { let p = 0; if (['Header', 'Side Portals', 'Plinth', 'Shelves', 'Drawers'].includes(f.item)) p = (2 * (f.l + f.w)); if (f.item === 'Back Panels') p = (2 * (f.l + f.h)); return p * MM_TO_FT; } },
-                    { item: "Aluminium Channel Profile", unit: "RFt", rate: RAW_MATERIAL_RATES.ALUMINIUM_CHANNEL_PROFILE.rate, wastage: RAW_MATERIAL_RATES.ALUMINIUM_CHANNEL_PROFILE.wastage, calculateBaseQty: (f) => f.item === 'Channels' ? 8 : 0 },
-                    { item: "Backclips for Accessories", unit: "Nos", rate: RAW_MATERIAL_RATES.BACKCLIPS.rate, wastage: RAW_MATERIAL_RATES.BACKCLIPS.wastage, calculateBaseQty: (f) => ['Straight Arm', 'Backbar'].includes(f.item) ? 2 : 0 },
-                    { item: "MS Pipe (15x30mm, 2mm thk)", unit: "Kg", rate: RAW_MATERIAL_RATES.MS_PIPE_15X30_2MM.rate, wastage: RAW_MATERIAL_RATES.MS_PIPE_15X30_2MM.wastage, calculateBaseQty: (f) => { const w = 0.43; if (f.item === 'Straight Arm') return 4 * w; if (f.item === 'Backbar') return (f.l * MM_TO_FT) * w; return 0; } },
-                    { item: "MS Shelf Bracket Cost", unit: "Nos", rate: RAW_MATERIAL_RATES.MS_SHELF_BRACKET.rate, wastage: RAW_MATERIAL_RATES.MS_SHELF_BRACKET.wastage, calculateBaseQty: (f) => f.item === 'Shelf Bracket' ? 1 : 0 },
-                    { item: "Powder Coating", unit: "Lump Sum Cost", rate: RAW_MATERIAL_RATES.POWDER_COATING_COST.rate, wastage: RAW_MATERIAL_RATES.POWDER_COATING_COST.wastage, calculateBaseQty: (f) => { const r = 25, s = 50; if (f.item === 'Channels') return ((2 * (f.l + f.w) * f.h) * SQMM_TO_SQFT) * s; if (f.item === 'Backbar') return (f.l * MM_TO_FT) * r; if (f.item === 'Straight Arm') return 4 * r; if (f.item === 'Shelf Bracket') return (350 * MM_TO_FT) * r; return 0; } },
-                    { item: "Finished 3D Acrylic Signage", unit: "SqFt", rate: RAW_MATERIAL_RATES.ACRYLIC_SIGNAGE_SQFT.rate, wastage: RAW_MATERIAL_RATES.ACRYLIC_SIGNAGE_SQFT.wastage, calculateBaseQty: (f) => f.item === 'Signage' ? (600 * 300) * SQMM_TO_SQFT : 0 },
-                    { item: "Aluminium LED Profile", unit: "RFt", rate: RAW_MATERIAL_RATES.ALUMINIUM_LED_PROFILE.rate, wastage: RAW_MATERIAL_RATES.ALUMINIUM_LED_PROFILE.wastage, calculateBaseQty: (f, o) => o.shelfType === 'lit' && f.item === 'Shelves' ? f.l * MM_TO_FT : 0 },
-                    { item: "LED Light Strip (4000K)", unit: "RFt", rate: RAW_MATERIAL_RATES.LED_STRIP_4000K.rate, wastage: RAW_MATERIAL_RATES.LED_STRIP_4000K.wastage, calculateBaseQty: (f, o) => o.shelfType === 'lit' && f.item === 'Shelves' ? f.l * MM_TO_FT : 0 },
-                    { item: "1mm Wire (for fixture)", unit: "RFt", rate: RAW_MATERIAL_RATES.WIRE_1MM.rate, wastage: RAW_MATERIAL_RATES.WIRE_1MM.wastage, calculateBaseQty: (f, o) => o.shelfType === 'lit' && f.item === 'Shelves' ? 3.28 : 0 },
-                    { item: "1.5mm Wire (for driver)", unit: "Meter", rate: RAW_MATERIAL_RATES.WIRE_1_5MM.rate, wastage: RAW_MATERIAL_RATES.WIRE_1_5MM.wastage, calculateBaseQty: (f, o) => o.shelfType === 'lit' && f.item === 'Shelves' ? 0.8 : 0 },
-                    { item: "LED Driver", unit: "Nos", rate: RAW_MATERIAL_RATES.LED_DRIVER.rate, wastage: RAW_MATERIAL_RATES.LED_DRIVER.wastage, calculateBaseQty: (f, o) => o.shelfType === 'lit' && f.item === 'Shelves' ? 0.2 : 0 }
+                    { item: "18mm MDF OSL (Off-white)", unit: "SqFt", rate: getMaterialData('MDF_18_OSL_OWHITE').rate, wastage: getMaterialData('MDF_18_OSL_OWHITE').wastage, calculateBaseQty: (f) => ['Header', 'Side Portals', 'Plinth'].includes(f.item) ? (2 * (f.l * f.w + f.l * f.h + f.w * f.h)) * SQMM_TO_SQFT : (f.item === 'Drawers' ? (f.l * f.w) + (f.l * f.h) : 0) * SQMM_TO_SQFT },
+                    { item: "18mm MDF BSL (Off-white)", unit: "SqFt", rate: getMaterialData('MDF_18_BSL_OWHITE').rate, wastage: getMaterialData('MDF_18_BSL_OWHITE').wastage, calculateBaseQty: (f) => { let a = 0; if (f.item === 'Back Panels') a = (f.l * f.h); if (f.item === 'Drawers') a = (2 * f.w * f.h) + (f.l * f.h); if (f.item === 'Shelves') a = (f.l * f.w); return a * SQMM_TO_SQFT; } },
+                    { item: "25mm MDF BSL (for Duco Pattern)", unit: "SqFt", rate: getMaterialData('MDF_25_BSL_DUCO').rate, wastage: getMaterialData('MDF_25_BSL_DUCO').wastage, calculateBaseQty: (f) => { if (f.item === 'Side Portals' && f.l < 51) return 0; return (['Header', 'Side Portals'].includes(f.item) && f.l >= 50) ? (f.l * f.h) * SQMM_TO_SQFT : 0 } },
+                    { item: "Light Blue Laminate (1mm)", unit: "SqFt", rate: getMaterialData('LAMINATE_LIGHT_BLUE').rate, wastage: getMaterialData('LAMINATE_LIGHT_BLUE').wastage, calculateBaseQty: (f) => ['Header', 'Side Portals', 'Plinth'].includes(f.item) ? (2 * (f.l * f.w + f.l * f.h + f.w * f.h)) * SQMM_TO_SQFT : (f.item === 'Drawers' ? (f.l * f.w) + (f.l * f.h) : 0) * SQMM_TO_SQFT },
+                    { item: "Duco Paint (for Pattern)", unit: "SqFt", rate: getMaterialData('DUCO_PAINT').rate, wastage: getMaterialData('DUCO_PAINT').wastage, calculateBaseQty: (f) => { if (f.item === 'Side Portals' && f.l < 51) return 0; return !['Header', 'Side Portals'].includes(f.item) || f.l < 50 ? 0 : (f.l * f.h * 1.5) * SQMM_TO_SQFT } },
+                    { item: "PVC Edge Banding (25mm)", unit: "RFt", rate: getMaterialData('PVC_EDGE_BAND_25MM').rate, wastage: getMaterialData('PVC_EDGE_BAND_25MM').wastage, calculateBaseQty: (f) => { let p = 0; if (['Header', 'Side Portals', 'Plinth', 'Shelves', 'Drawers'].includes(f.item)) p = (2 * (f.l + f.w)); if (f.item === 'Back Panels') p = (2 * (f.l + f.h)); return p * MM_TO_FT; } },
+                    { item: "Aluminium Channel Profile", unit: "RFt", rate: getMaterialData('ALUMINIUM_CHANNEL_PROFILE').rate, wastage: getMaterialData('ALUMINIUM_CHANNEL_PROFILE').wastage, calculateBaseQty: (f) => f.item === 'Channels' ? 8 : 0 },
+                    { item: "Backclips for Accessories", unit: "Nos", rate: getMaterialData('BACKCLIPS').rate, wastage: getMaterialData('BACKCLIPS').wastage, calculateBaseQty: (f) => ['Straight Arm', 'Backbar'].includes(f.item) ? 2 : 0 },
+                    { item: "MS Pipe (15x30mm, 2mm thk)", unit: "Kg", rate: getMaterialData('MS_PIPE_15X30_2MM').rate, wastage: getMaterialData('MS_PIPE_15X30_2MM').wastage, calculateBaseQty: (f) => { const w = 0.43; if (f.item === 'Straight Arm') return 4 * w; if (f.item === 'Backbar') return (f.l * MM_TO_FT) * w; return 0; } },
+                    { item: "MS Shelf Bracket Cost", unit: "Nos", rate: getMaterialData('MS_SHELF_BRACKET').rate, wastage: getMaterialData('MS_SHELF_BRACKET').wastage, calculateBaseQty: (f) => f.item === 'Shelf Bracket' ? 1 : 0 },
+                    { item: "Powder Coating", unit: "Lump Sum Cost", rate: getMaterialData('POWDER_COATING_COST').rate, wastage: getMaterialData('POWDER_COATING_COST').wastage, calculateBaseQty: (f) => { const r = 25, s = 50; if (f.item === 'Channels') return ((2 * (f.l + f.w) * f.h) * SQMM_TO_SQFT) * s; if (f.item === 'Backbar') return (f.l * MM_TO_FT) * r; if (f.item === 'Straight Arm') return 4 * r; if (f.item === 'Shelf Bracket') return (350 * MM_TO_FT) * r; return 0; } },
+                    { item: "Finished 3D Acrylic Signage", unit: "SqFt", rate: getMaterialData('ACRYLIC_SIGNAGE_SQFT').rate, wastage: getMaterialData('ACRYLIC_SIGNAGE_SQFT').wastage, calculateBaseQty: (f) => f.item === 'Signage' ? (600 * 300) * SQMM_TO_SQFT : 0 },
+                    { item: "Aluminium LED Profile", unit: "RFt", rate: getMaterialData('ALUMINIUM_LED_PROFILE').rate, wastage: getMaterialData('ALUMINIUM_LED_PROFILE').wastage, calculateBaseQty: (f, o) => o.shelfType === 'lit' && f.item === 'Shelves' ? f.l * MM_TO_FT : 0 },
+                    { item: "LED Light Strip (4000K)", unit: "RFt", rate: getMaterialData('LED_STRIP_4000K').rate, wastage: getMaterialData('LED_STRIP_4000K').wastage, calculateBaseQty: (f, o) => o.shelfType === 'lit' && f.item === 'Shelves' ? f.l * MM_TO_FT : 0 },
+                    { item: "1mm Wire (for fixture)", unit: "RFt", rate: getMaterialData('WIRE_1MM').rate, wastage: getMaterialData('WIRE_1MM').wastage, calculateBaseQty: (f, o) => o.shelfType === 'lit' && f.item === 'Shelves' ? 3.28 : 0 },
+                    { item: "1.5mm Wire (for driver)", unit: "Meter", rate: getMaterialData('WIRE_1_5MM').rate, wastage: getMaterialData('WIRE_1_5MM').wastage, calculateBaseQty: (f, o) => o.shelfType === 'lit' && f.item === 'Shelves' ? 0.8 : 0 },
+                    { item: "LED Driver", unit: "Nos", rate: getMaterialData('LED_DRIVER').rate, wastage: getMaterialData('LED_DRIVER').wastage, calculateBaseQty: (f, o) => o.shelfType === 'lit' && f.item === 'Shelves' ? 0.2 : 0 }
                 ]
             },
             "Park Avenue": {
                 materials: [
-                    { item: "18mm MDF BSL (Charcoal/Off-white)", unit: "SqFt", rate: RAW_MATERIAL_RATES.MDF_18_BSL_OWHITE.rate, wastage: RAW_MATERIAL_RATES.MDF_18_BSL_OWHITE.wastage, calculateBaseQty: (f) => ['Header', 'Side Portals', 'Plinth', 'Drawers', 'Back Panels', 'Shelves'].includes(f.item) ? (2 * (f.l * f.w + f.l * f.h + f.w * f.h)) * SQMM_TO_SQFT : 0 },
-                    { item: "25x25mm AL Pipe (for Pattern)", unit: "RFt", rate: RAW_MATERIAL_RATES.AL_PIPE_50X50.rate, wastage: RAW_MATERIAL_RATES.AL_PIPE_50X50.wastage, calculateBaseQty: (f) => { if (!['Header', 'Side Portals'].includes(f.item) || f.l < 50) return 0; return (Math.ceil(f.h / 50.4) * f.l) * MM_TO_FT; } },
-                    { item: "PVC Edge Banding (25mm)", unit: "RFt", rate: RAW_MATERIAL_RATES.PVC_EDGE_BAND_25MM.rate, wastage: RAW_MATERIAL_RATES.PVC_EDGE_BAND_25MM.wastage, calculateBaseQty: (f) => { let p = 0; if (['Header', 'Side Portals', 'Plinth', 'Shelves', 'Drawers', 'Back Panels'].includes(f.item)) p = (2 * (f.l + f.w)); if (f.item === 'Back Panels') p = (2 * (f.l + f.h)); return p * MM_TO_FT; } },
-                    { item: "Aluminium Channel Profile", unit: "RFt", rate: RAW_MATERIAL_RATES.ALUMINIUM_CHANNEL_PROFILE.rate, wastage: RAW_MATERIAL_RATES.ALUMINIUM_CHANNEL_PROFILE.wastage, calculateBaseQty: (f) => f.item === 'Channels' ? 8 : 0 },
-                    { item: "Backclips for Accessories", unit: "Nos", rate: RAW_MATERIAL_RATES.BACKCLIPS.rate, wastage: RAW_MATERIAL_RATES.BACKCLIPS.wastage, calculateBaseQty: (f) => ['Straight Arm', 'Backbar'].includes(f.item) ? 2 : 0 },
-                    { item: "MS Pipe (15x30mm, 2mm thk)", unit: "Kg", rate: RAW_MATERIAL_RATES.MS_PIPE_15X30_2MM.rate, wastage: RAW_MATERIAL_RATES.MS_PIPE_15X30_2MM.wastage, calculateBaseQty: (f) => { const w = 0.43; if (f.item === 'Straight Arm') return 4 * w; if (f.item === 'Backbar') return (f.l * MM_TO_FT) * w; return 0; } },
-                    { item: "MS Shelf Bracket Cost", unit: "Nos", rate: RAW_MATERIAL_RATES.MS_SHELF_BRACKET.rate, wastage: RAW_MATERIAL_RATES.MS_SHELF_BRACKET.wastage, calculateBaseQty: (f) => f.item === 'Shelf Bracket' ? 1 : 0 },
-                    { item: "Powder Coating", unit: "Lump Sum Cost", rate: RAW_MATERIAL_RATES.POWDER_COATING_COST.rate, wastage: RAW_MATERIAL_RATES.POWDER_COATING_COST.wastage, calculateBaseQty: (f) => { const r = 25, s = 50; if (f.item === 'Channels') return ((2 * (f.l + f.w) * f.h) * SQMM_TO_SQFT) * s; if (['Header', 'Side Portals'].includes(f.item)) return ((Math.ceil(f.h / 50.4) * f.l) * MM_TO_FT) * r; if (f.item === 'Backbar') return (f.l * MM_TO_FT) * r; if (f.item === 'Straight Arm') return 4 * r; if (f.item === 'Shelf Bracket') return (350 * MM_TO_FT) * r; return 0; } },
-                    { item: "Finished 3D Acrylic Signage", unit: "SqFt", rate: RAW_MATERIAL_RATES.ACRYLIC_SIGNAGE_SQFT.rate, wastage: RAW_MATERIAL_RATES.ACRYLIC_SIGNAGE_SQFT.wastage, calculateBaseQty: (f) => f.item === 'Signage' ? (600 * 300) * SQMM_TO_SQFT : 0 },
-                    { item: "Aluminium LED Profile", unit: "RFt", rate: RAW_MATERIAL_RATES.ALUMINIUM_LED_PROFILE.rate, wastage: RAW_MATERIAL_RATES.ALUMINIUM_LED_PROFILE.wastage, calculateBaseQty: (f, o) => { if (f.item === 'Side Portals' && f.l === 18) return 0; if ((o.shelfType === 'lit' && f.item === 'Shelves') || f.item === 'Header') return f.l * MM_TO_FT; if (f.item === 'Side Portals') return f.h * MM_TO_FT; return 0; } },
-                    { item: "LED Light Strip (4000K)", unit: "RFt", rate: RAW_MATERIAL_RATES.LED_STRIP_4000K.rate, wastage: RAW_MATERIAL_RATES.LED_STRIP_4000K.wastage, calculateBaseQty: (f, o) => { if (f.item === 'Side Portals' && f.l === 18) return 0; if ((o.shelfType === 'lit' && f.item === 'Shelves') || f.item === 'Header') return f.l * MM_TO_FT; if (f.item === 'Side Portals') return f.h * MM_TO_FT; return 0; } },
-                    { item: "1mm Wire (for fixture)", unit: "RFt", rate: RAW_MATERIAL_RATES.WIRE_1MM.rate, wastage: RAW_MATERIAL_RATES.WIRE_1MM.wastage, calculateBaseQty: (f, o) => { if (f.item === 'Side Portals' && f.l === 18) return 0; return (o.shelfType === 'lit' && f.item === 'Shelves') || ['Header', 'Side Portals'].includes(f.item) ? 3.28 : 0; } },
-                    { item: "1.5mm Wire (for driver)", unit: "Meter", rate: RAW_MATERIAL_RATES.WIRE_1_5MM.rate, wastage: RAW_MATERIAL_RATES.WIRE_1_5MM.wastage, calculateBaseQty: (f, o) => { if (f.item === 'Side Portals' && f.l === 18) return 0; if (o.shelfType === 'lit' && f.item === 'Shelves') return 0.8; if (['Header', 'Side Portals'].includes(f.item)) return 2.0; return 0; } },
-                    { item: "LED Driver", unit: "Nos", rate: RAW_MATERIAL_RATES.LED_DRIVER.rate, wastage: RAW_MATERIAL_RATES.LED_DRIVER.wastage, calculateBaseQty: (f, o) => { if (f.item === 'Side Portals' && f.l === 18) return 0; if (o.shelfType === 'lit' && f.item === 'Shelves') return 0.2; if (['Header', 'Side Portals'].includes(f.item)) return 1.0; return 0; } }
+                    { item: "18mm MDF BSL (Charcoal/Off-white)", unit: "SqFt", rate: getMaterialData('MDF_18_BSL_OWHITE').rate, wastage: getMaterialData('MDF_18_BSL_OWHITE').wastage, calculateBaseQty: (f) => ['Header', 'Side Portals', 'Plinth', 'Drawers', 'Back Panels', 'Shelves'].includes(f.item) ? (2 * (f.l * f.w + f.l * f.h + f.w * f.h)) * SQMM_TO_SQFT : 0 },
+                    { item: "25x25mm AL Pipe (for Pattern)", unit: "RFt", rate: getMaterialData('AL_PIPE_50X50').rate, wastage: getMaterialData('AL_PIPE_50X50').wastage, calculateBaseQty: (f) => { if (!['Header', 'Side Portals'].includes(f.item) || f.l < 50) return 0; return (Math.ceil(f.h / 50.4) * f.l) * MM_TO_FT; } },
+                    { item: "PVC Edge Banding (25mm)", unit: "RFt", rate: getMaterialData('PVC_EDGE_BAND_25MM').rate, wastage: getMaterialData('PVC_EDGE_BAND_25MM').wastage, calculateBaseQty: (f) => { let p = 0; if (['Header', 'Side Portals', 'Plinth', 'Shelves', 'Drawers', 'Back Panels'].includes(f.item)) p = (2 * (f.l + f.w)); if (f.item === 'Back Panels') p = (2 * (f.l + f.h)); return p * MM_TO_FT; } },
+                    { item: "Aluminium Channel Profile", unit: "RFt", rate: getMaterialData('ALUMINIUM_CHANNEL_PROFILE').rate, wastage: getMaterialData('ALUMINIUM_CHANNEL_PROFILE').wastage, calculateBaseQty: (f) => f.item === 'Channels' ? 8 : 0 },
+                    { item: "Backclips for Accessories", unit: "Nos", rate: getMaterialData('BACKCLIPS').rate, wastage: getMaterialData('BACKCLIPS').wastage, calculateBaseQty: (f) => ['Straight Arm', 'Backbar'].includes(f.item) ? 2 : 0 },
+                    { item: "MS Pipe (15x30mm, 2mm thk)", unit: "Kg", rate: getMaterialData('MS_PIPE_15X30_2MM').rate, wastage: getMaterialData('MS_PIPE_15X30_2MM').wastage, calculateBaseQty: (f) => { const w = 0.43; if (f.item === 'Straight Arm') return 4 * w; if (f.item === 'Backbar') return (f.l * MM_TO_FT) * w; return 0; } },
+                    { item: "MS Shelf Bracket Cost", unit: "Nos", rate: getMaterialData('MS_SHELF_BRACKET').rate, wastage: getMaterialData('MS_SHELF_BRACKET').wastage, calculateBaseQty: (f) => f.item === 'Shelf Bracket' ? 1 : 0 },
+                    { item: "Powder Coating", unit: "Lump Sum Cost", rate: getMaterialData('POWDER_COATING_COST').rate, wastage: getMaterialData('POWDER_COATING_COST').wastage, calculateBaseQty: (f) => { const r = 25, s = 50; if (f.item === 'Channels') return ((2 * (f.l + f.w) * f.h) * SQMM_TO_SQFT) * s; if (['Header', 'Side Portals'].includes(f.item)) return ((Math.ceil(f.h / 50.4) * f.l) * MM_TO_FT) * r; if (f.item === 'Backbar') return (f.l * MM_TO_FT) * r; if (f.item === 'Straight Arm') return 4 * r; if (f.item === 'Shelf Bracket') return (350 * MM_TO_FT) * r; return 0; } },
+                    { item: "Finished 3D Acrylic Signage", unit: "SqFt", rate: getMaterialData('ACRYLIC_SIGNAGE_SQFT').rate, wastage: getMaterialData('ACRYLIC_SIGNAGE_SQFT').wastage, calculateBaseQty: (f) => f.item === 'Signage' ? (600 * 300) * SQMM_TO_SQFT : 0 },
+                    { item: "Aluminium LED Profile", unit: "RFt", rate: getMaterialData('ALUMINIUM_LED_PROFILE').rate, wastage: getMaterialData('ALUMINIUM_LED_PROFILE').wastage, calculateBaseQty: (f, o) => { if (f.item === 'Side Portals' && f.l === 18) return 0; if ((o.shelfType === 'lit' && f.item === 'Shelves') || f.item === 'Header') return f.l * MM_TO_FT; if (f.item === 'Side Portals') return f.h * MM_TO_FT; return 0; } },
+                    { item: "LED Light Strip (4000K)", unit: "RFt", rate: getMaterialData('LED_STRIP_4000K').rate, wastage: getMaterialData('LED_STRIP_4000K').wastage, calculateBaseQty: (f, o) => { if (f.item === 'Side Portals' && f.l === 18) return 0; if ((o.shelfType === 'lit' && f.item === 'Shelves') || f.item === 'Header') return f.l * MM_TO_FT; if (f.item === 'Side Portals') return f.h * MM_TO_FT; return 0; } },
+                    { item: "1mm Wire (for fixture)", unit: "RFt", rate: getMaterialData('WIRE_1MM').rate, wastage: getMaterialData('WIRE_1MM').wastage, calculateBaseQty: (f, o) => { if (f.item === 'Side Portals' && f.l === 18) return 0; return (o.shelfType === 'lit' && f.item === 'Shelves') || ['Header', 'Side Portals'].includes(f.item) ? 3.28 : 0; } },
+                    { item: "1.5mm Wire (for driver)", unit: "Meter", rate: getMaterialData('WIRE_1_5MM').rate, wastage: getMaterialData('WIRE_1_5MM').wastage, calculateBaseQty: (f, o) => { if (f.item === 'Side Portals' && f.l === 18) return 0; if (o.shelfType === 'lit' && f.item === 'Shelves') return 0.8; if (['Header', 'Side Portals'].includes(f.item)) return 2.0; return 0; } },
+                    { item: "LED Driver", unit: "Nos", rate: getMaterialData('LED_DRIVER').rate, wastage: getMaterialData('LED_DRIVER').wastage, calculateBaseQty: (f, o) => { if (f.item === 'Side Portals' && f.l === 18) return 0; if (o.shelfType === 'lit' && f.item === 'Shelves') return 0.2; if (['Header', 'Side Portals'].includes(f.item)) return 1.0; return 0; } }
                 ]
             },
             "Ready to Wear": {
                 materials: [
-                    { item: "18mm MDF OSL (Off-white)", unit: "SqFt", rate: RAW_MATERIAL_RATES.MDF_18_OSL_OWHITE.rate, wastage: RAW_MATERIAL_RATES.MDF_18_OSL_OWHITE.wastage, calculateBaseQty: (f) => ['Header', 'Back Panels'].includes(f.item) ? (f.l * f.h) * SQMM_TO_SQFT : 0 },
-                    { item: "18mm MDF BSL (Black)", unit: "SqFt", rate: RAW_MATERIAL_RATES.MDF_18_BSL_BLACK.rate, wastage: RAW_MATERIAL_RATES.MDF_18_BSL_BLACK.wastage, calculateBaseQty: (f) => f.item === 'Side Portals' ? (2 * (f.l * f.w + f.l * f.h + f.w * f.h)) * SQMM_TO_SQFT : 0 },
-                    { item: "18mm MDF BSL (Off-white)", unit: "SqFt", rate: RAW_MATERIAL_RATES.MDF_18_BSL_OWHITE.rate, wastage: RAW_MATERIAL_RATES.MDF_18_BSL_OWHITE.wastage, calculateBaseQty: (f) => ['Drawers', 'Plinth', 'Shelves'].includes(f.item) ? (2 * (f.l * f.w + f.l * f.h + f.w * f.h)) * SQMM_TO_SQFT : 0 },
-                    { item: "Cherry Walnut Laminate", unit: "SqFt", rate: RAW_MATERIAL_RATES.LAMINATE_CHERRY_WALNUT.rate, wastage: RAW_MATERIAL_RATES.LAMINATE_CHERRY_WALNUT.wastage, calculateBaseQty: (f) => { let a = 0; if (f.item === 'Header') a = (2 * (f.l * f.h + f.l * f.w)); if (f.item === 'Shelves') a = 2 * (f.l * f.w); if (f.item === 'Drawers') a = (f.l * f.h + f.l * f.w + 2 * f.w * f.h); if (f.item === 'Plinth') a = (2 * (f.l * f.h + f.l * f.w)); return a * SQMM_TO_SQFT; } },
-                    { item: "Denim Splash Laminate", unit: "SqFt", rate: RAW_MATERIAL_RATES.LAMINATE_DENIM_SPLASH.rate, wastage: RAW_MATERIAL_RATES.LAMINATE_DENIM_SPLASH.wastage, calculateBaseQty: (f) => f.item === 'Back Panels' ? (f.l * f.h) * SQMM_TO_SQFT : 0 },
-                    { item: "25x25mm MS Pipe", unit: "Kg", rate: RAW_MATERIAL_RATES.MS_PIPE_25X25.rate, wastage: RAW_MATERIAL_RATES.MS_PIPE_25X25.wastage, calculateBaseQty: (f) => f.item === 'Header' ? ((2 * (f.l + f.h)) * MM_TO_FT) * 0.43 : 0 },
-                    { item: "Powder Coating", unit: "Lump Sum Cost", rate: RAW_MATERIAL_RATES.POWDER_COATING_COST.rate, wastage: RAW_MATERIAL_RATES.POWDER_COATING_COST.wastage, calculateBaseQty: (f) => { const r = 25; if (f.item === 'Header') return (2 * (f.l + f.h)) * MM_TO_FT * r; if (f.item === 'Side Portals' && f.l !== 18) return (f.h * MM_TO_FT) * r; if (f.item === 'Channels') return (f.h * MM_TO_FT) * r; if (f.item === 'Straight Arm') return 4 * r; if (f.item === 'Backbar') return (f.l * MM_TO_FT) * r; if (f.item === 'Shelf Bracket') return (350 * MM_TO_FT) * r; return 0; } },
-                    { item: "Aluminium LED Profile", unit: "RFt", rate: RAW_MATERIAL_RATES.ALUMINIUM_LED_PROFILE.rate, wastage: RAW_MATERIAL_RATES.ALUMINIUM_LED_PROFILE.wastage, calculateBaseQty: (f) => (f.item === 'Side Portals' && f.l !== 18) ? f.h * MM_TO_FT : 0 },
-                    { item: "LED Light Strip (4000K)", unit: "RFt", rate: RAW_MATERIAL_RATES.LED_STRIP_4000K.rate, wastage: RAW_MATERIAL_RATES.LED_STRIP_4000K.wastage, calculateBaseQty: (f) => (f.item === 'Side Portals' && f.l !== 18) ? f.h * MM_TO_FT : 0 },
-                    { item: "1mm Wire (for fixture)", unit: "RFt", rate: RAW_MATERIAL_RATES.WIRE_1MM.rate, wastage: RAW_MATERIAL_RATES.WIRE_1MM.wastage, calculateBaseQty: (f) => (f.item === 'Side Portals' && f.l !== 18) ? 3.28 : 0 },
-                    { item: "LED Driver", unit: "Nos", rate: RAW_MATERIAL_RATES.LED_DRIVER.rate, wastage: RAW_MATERIAL_RATES.LED_DRIVER.wastage, calculateBaseQty: (f) => (f.item === 'Side Portals' && f.l !== 18) ? 1 : 0 },
-                    { item: "Aluminium Channel Profile", unit: "RFt", rate: RAW_MATERIAL_RATES.ALUMINIUM_CHANNEL_PROFILE.rate, wastage: RAW_MATERIAL_RATES.ALUMINIUM_CHANNEL_PROFILE.wastage, calculateBaseQty: (f) => f.item === 'Channels' ? 8 : 0 },
-                    { item: "Backclips for Accessories", unit: "Nos", rate: RAW_MATERIAL_RATES.BACKCLIPS.rate, wastage: RAW_MATERIAL_RATES.BACKCLIPS.wastage, calculateBaseQty: (f) => ['Straight Arm', 'Backbar'].includes(f.item) ? 2 : 0 },
-                    { item: "MS Pipe (15x30mm, 2mm thk)", unit: "Kg", rate: RAW_MATERIAL_RATES.MS_PIPE_15X30_2MM.rate, wastage: RAW_MATERIAL_RATES.MS_PIPE_15X30_2MM.wastage, calculateBaseQty: (f) => { const w = 0.43; if (f.item === 'Straight Arm') return 4 * w; if (f.item === 'Backbar') return (f.l * MM_TO_FT) * w; return 0; } },
-                    { item: "MS Shelf Bracket Cost", unit: "Nos", rate: RAW_MATERIAL_RATES.MS_SHELF_BRACKET.rate, wastage: RAW_MATERIAL_RATES.MS_SHELF_BRACKET.wastage, calculateBaseQty: (f) => f.item === 'Shelf Bracket' ? 1 : 0 },
+                    { item: "18mm MDF OSL (Off-white)", unit: "SqFt", rate: getMaterialData('MDF_18_OSL_OWHITE').rate, wastage: getMaterialData('MDF_18_OSL_OWHITE').wastage, calculateBaseQty: (f) => ['Header', 'Back Panels'].includes(f.item) ? (f.l * f.h) * SQMM_TO_SQFT : 0 },
+                    { item: "18mm MDF BSL (Black)", unit: "SqFt", rate: getMaterialData('MDF_18_BSL_BLACK').rate, wastage: getMaterialData('MDF_18_BSL_BLACK').wastage, calculateBaseQty: (f) => f.item === 'Side Portals' ? (2 * (f.l * f.w + f.l * f.h + f.w * f.h)) * SQMM_TO_SQFT : 0 },
+                    { item: "18mm MDF BSL (Off-white)", unit: "SqFt", rate: getMaterialData('MDF_18_BSL_OWHITE').rate, wastage: getMaterialData('MDF_18_BSL_OWHITE').wastage, calculateBaseQty: (f) => ['Drawers', 'Plinth', 'Shelves'].includes(f.item) ? (2 * (f.l * f.w + f.l * f.h + f.w * f.h)) * SQMM_TO_SQFT : 0 },
+                    { item: "Cherry Walnut Laminate", unit: "SqFt", rate: getMaterialData('LAMINATE_CHERRY_WALNUT').rate, wastage: getMaterialData('LAMINATE_CHERRY_WALNUT').wastage, calculateBaseQty: (f) => { let a = 0; if (f.item === 'Header') a = (2 * (f.l * f.h + f.l * f.w)); if (f.item === 'Shelves') a = 2 * (f.l * f.w); if (f.item === 'Drawers') a = (f.l * f.h + f.l * f.w + 2 * f.w * f.h); if (f.item === 'Plinth') a = (2 * (f.l * f.h + f.l * f.w)); return a * SQMM_TO_SQFT; } },
+                    { item: "Denim Splash Laminate", unit: "SqFt", rate: getMaterialData('LAMINATE_DENIM_SPLASH').rate, wastage: getMaterialData('LAMINATE_DENIM_SPLASH').wastage, calculateBaseQty: (f) => f.item === 'Back Panels' ? (f.l * f.h) * SQMM_TO_SQFT : 0 },
+                    { item: "25x25mm MS Pipe", unit: "Kg", rate: getMaterialData('MS_PIPE_25X25').rate, wastage: getMaterialData('MS_PIPE_25X25').wastage, calculateBaseQty: (f) => f.item === 'Header' ? ((2 * (f.l + f.h)) * MM_TO_FT) * 0.43 : 0 },
+                    { item: "Powder Coating", unit: "Lump Sum Cost", rate: getMaterialData('POWDER_COATING_COST').rate, wastage: getMaterialData('POWDER_COATING_COST').wastage, calculateBaseQty: (f) => { const r = 25; if (f.item === 'Header') return (2 * (f.l + f.h)) * MM_TO_FT * r; if (f.item === 'Side Portals' && f.l !== 18) return (f.h * MM_TO_FT) * r; if (f.item === 'Channels') return (f.h * MM_TO_FT) * r; if (f.item === 'Straight Arm') return 4 * r; if (f.item === 'Backbar') return (f.l * MM_TO_FT) * r; if (f.item === 'Shelf Bracket') return (350 * MM_TO_FT) * r; return 0; } },
+                    { item: "Aluminium LED Profile", unit: "RFt", rate: getMaterialData('ALUMINIUM_LED_PROFILE').rate, wastage: getMaterialData('ALUMINIUM_LED_PROFILE').wastage, calculateBaseQty: (f) => (f.item === 'Side Portals' && f.l !== 18) ? f.h * MM_TO_FT : 0 },
+                    { item: "LED Light Strip (4000K)", unit: "RFt", rate: getMaterialData('LED_STRIP_4000K').rate, wastage: getMaterialData('LED_STRIP_4000K').wastage, calculateBaseQty: (f) => (f.item === 'Side Portals' && f.l !== 18) ? f.h * MM_TO_FT : 0 },
+                    { item: "1mm Wire (for fixture)", unit: "RFt", rate: getMaterialData('WIRE_1MM').rate, wastage: getMaterialData('WIRE_1MM').wastage, calculateBaseQty: (f) => (f.item === 'Side Portals' && f.l !== 18) ? 3.28 : 0 },
+                    { item: "LED Driver", unit: "Nos", rate: getMaterialData('LED_DRIVER').rate, wastage: getMaterialData('LED_DRIVER').wastage, calculateBaseQty: (f) => (f.item === 'Side Portals' && f.l !== 18) ? 1 : 0 },
+                    { item: "Aluminium Channel Profile", unit: "RFt", rate: getMaterialData('ALUMINIUM_CHANNEL_PROFILE').rate, wastage: getMaterialData('ALUMINIUM_CHANNEL_PROFILE').wastage, calculateBaseQty: (f) => f.item === 'Channels' ? 8 : 0 },
+                    { item: "Backclips for Accessories", unit: "Nos", rate: getMaterialData('BACKCLIPS').rate, wastage: getMaterialData('BACKCLIPS').wastage, calculateBaseQty: (f) => ['Straight Arm', 'Backbar'].includes(f.item) ? 2 : 0 },
+                    { item: "MS Pipe (15x30mm, 2mm thk)", unit: "Kg", rate: getMaterialData('MS_PIPE_15X30_2MM').rate, wastage: getMaterialData('MS_PIPE_15X30_2MM').wastage, calculateBaseQty: (f) => { const w = 0.43; if (f.item === 'Straight Arm') return 4 * w; if (f.item === 'Backbar') return (f.l * MM_TO_FT) * w; return 0; } },
+                    { item: "MS Shelf Bracket Cost", unit: "Nos", rate: getMaterialData('MS_SHELF_BRACKET').rate, wastage: getMaterialData('MS_SHELF_BRACKET').wastage, calculateBaseQty: (f) => f.item === 'Shelf Bracket' ? 1 : 0 },
                 ]
             },
             "ColorPlus": {
                 materials: [
-                    { item: "18mm Prelam BSL Misty Pine Oak", unit: "SqFt", rate: RAW_MATERIAL_RATES.PRELAM_18_BSL_PINE_OAK.rate, wastage: RAW_MATERIAL_RATES.PRELAM_18_BSL_PINE_OAK.wastage, calculateBaseQty: (f) => { let a = 0; if (['Header', 'Side Portals', 'Plinth'].includes(f.item)) a = (2 * (f.l * f.w + f.l * f.h + f.w * f.h)); if (f.item === 'Header') a += 2 * (2 * (f.l * 50 + f.l * 40 + 50 * 40)); return a * SQMM_TO_SQFT; } },
-                    { item: "18mm MDF BSL (Off-white)", unit: "SqFt", rate: RAW_MATERIAL_RATES.MDF_18_BSL_OWHITE.rate, wastage: RAW_MATERIAL_RATES.MDF_18_BSL_OWHITE.wastage, calculateBaseQty: (f) => ['Shelves', 'Drawers'].includes(f.item) ? (2 * (f.l * f.w + f.l * f.h + f.w * f.h)) * SQMM_TO_SQFT : 0 },
-                    { item: "Misty Pine Oak Laminate", unit: "SqFt", rate: RAW_MATERIAL_RATES.LAMINATE_PINE_OAK.rate, wastage: RAW_MATERIAL_RATES.LAMINATE_PINE_OAK.wastage, calculateBaseQty: (f) => f.item === 'Drawers' ? (f.l * f.w) * SQMM_TO_SQFT : 0 },
-                    { item: "50x50mm AL Pipe", unit: "RFt", rate: RAW_MATERIAL_RATES.AL_PIPE_50X50.rate, wastage: RAW_MATERIAL_RATES.AL_PIPE_50X50.wastage, calculateBaseQty: (f) => f.item === 'Header' ? (Math.ceil(f.l / 70) * 40) * MM_TO_FT : 0 },
-                    { item: "Powder Coating", unit: "Lump Sum Cost", rate: RAW_MATERIAL_RATES.POWDER_COATING_COST.rate, wastage: RAW_MATERIAL_RATES.POWDER_COATING_COST.wastage, calculateBaseQty: (f) => { const r = 25; let c = 0; if (f.item === 'Header') c += ((Math.ceil(f.l / 70) * 40) * MM_TO_FT) * r; if (f.item === 'Channels') c += (f.h * MM_TO_FT) * r; if (f.item === 'Straight Arm') return 4 * r; if (f.item === 'Backbar') return (f.l * MM_TO_FT) * r; if (f.item === 'Shelf Bracket') return (350 * MM_TO_FT) * r; return c; } },
-                    { item: "Aluminium LED Profile", unit: "RFt", rate: RAW_MATERIAL_RATES.ALUMINIUM_LED_PROFILE.rate, wastage: RAW_MATERIAL_RATES.ALUMINIUM_LED_PROFILE.wastage, calculateBaseQty: (f) => (f.item === 'Side Portals' && f.l !== 18) ? f.h * MM_TO_FT : 0 },
-                    { item: "LED Light Strip (4000K)", unit: "RFt", rate: RAW_MATERIAL_RATES.LED_STRIP_4000K.rate, wastage: RAW_MATERIAL_RATES.LED_STRIP_4000K.wastage, calculateBaseQty: (f) => (f.item === 'Side Portals' && f.l !== 18) ? f.h * MM_TO_FT : 0 },
-                    { item: "1mm Wire (for fixture)", unit: "RFt", rate: RAW_MATERIAL_RATES.WIRE_1MM.rate, wastage: RAW_MATERIAL_RATES.WIRE_1MM.wastage, calculateBaseQty: (f) => (f.item === 'Side Portals' && f.l !== 18) ? 3.28 : 0 },
-                    { item: "LED Driver", unit: "Nos", rate: RAW_MATERIAL_RATES.LED_DRIVER.rate, wastage: RAW_MATERIAL_RATES.LED_DRIVER.wastage, calculateBaseQty: (f) => (f.item === 'Side Portals' && f.l !== 18) ? 1 : 0 },
-                    { item: "Aluminium Channel Profile", unit: "RFt", rate: RAW_MATERIAL_RATES.ALUMINIUM_CHANNEL_PROFILE.rate, wastage: RAW_MATERIAL_RATES.ALUMINIUM_CHANNEL_PROFILE.wastage, calculateBaseQty: (f) => f.item === 'Channels' ? 8 : 0 },
-                    { item: "Backclips for Accessories", unit: "Nos", rate: RAW_MATERIAL_RATES.BACKCLIPS.rate, wastage: RAW_MATERIAL_RATES.BACKCLIPS.wastage, calculateBaseQty: (f) => ['Straight Arm', 'Backbar'].includes(f.item) ? 2 : 0 },
-                    { item: "MS Pipe (15x30mm, 2mm thk)", unit: "Kg", rate: RAW_MATERIAL_RATES.MS_PIPE_15X30_2MM.rate, wastage: RAW_MATERIAL_RATES.MS_PIPE_15X30_2MM.wastage, calculateBaseQty: (f) => { const w = 0.43; if (f.item === 'Straight Arm') return 4 * w; if (f.item === 'Backbar') return (f.l * MM_TO_FT) * w; return 0; } },
-                    { item: "MS Shelf Bracket Cost", unit: "Nos", rate: RAW_MATERIAL_RATES.MS_SHELF_BRACKET.rate, wastage: RAW_MATERIAL_RATES.MS_SHELF_BRACKET.wastage, calculateBaseQty: (f) => f.item === 'Shelf Bracket' ? 1 : 0 },
+                    { item: "18mm Prelam BSL Misty Pine Oak", unit: "SqFt", rate: getMaterialData('PRELAM_18_BSL_PINE_OAK').rate, wastage: getMaterialData('PRELAM_18_BSL_PINE_OAK').wastage, calculateBaseQty: (f) => { let a = 0; if (['Header', 'Side Portals', 'Plinth'].includes(f.item)) a = (2 * (f.l * f.w + f.l * f.h + f.w * f.h)); if (f.item === 'Header') a += 2 * (2 * (f.l * 50 + f.l * 40 + 50 * 40)); return a * SQMM_TO_SQFT; } },
+                    { item: "18mm MDF BSL (Off-white)", unit: "SqFt", rate: getMaterialData('MDF_18_BSL_OWHITE').rate, wastage: getMaterialData('MDF_18_BSL_OWHITE').wastage, calculateBaseQty: (f) => ['Shelves', 'Drawers'].includes(f.item) ? (2 * (f.l * f.w + f.l * f.h + f.w * f.h)) * SQMM_TO_SQFT : 0 },
+                    { item: "Misty Pine Oak Laminate", unit: "SqFt", rate: getMaterialData('LAMINATE_PINE_OAK').rate, wastage: getMaterialData('LAMINATE_PINE_OAK').wastage, calculateBaseQty: (f) => f.item === 'Drawers' ? (f.l * f.w) * SQMM_TO_SQFT : 0 },
+                    { item: "50x50mm AL Pipe", unit: "RFt", rate: getMaterialData('AL_PIPE_50X50').rate, wastage: getMaterialData('AL_PIPE_50X50').wastage, calculateBaseQty: (f) => f.item === 'Header' ? (Math.ceil(f.l / 70) * 40) * MM_TO_FT : 0 },
+                    { item: "Powder Coating", unit: "Lump Sum Cost", rate: getMaterialData('POWDER_COATING_COST').rate, wastage: getMaterialData('POWDER_COATING_COST').wastage, calculateBaseQty: (f) => { const r = 25; let c = 0; if (f.item === 'Header') c += ((Math.ceil(f.l / 70) * 40) * MM_TO_FT) * r; if (f.item === 'Channels') c += (f.h * MM_TO_FT) * r; if (f.item === 'Straight Arm') return 4 * r; if (f.item === 'Backbar') return (f.l * MM_TO_FT) * r; if (f.item === 'Shelf Bracket') return (350 * MM_TO_FT) * r; return c; } },
+                    { item: "Aluminium LED Profile", unit: "RFt", rate: getMaterialData('ALUMINIUM_LED_PROFILE').rate, wastage: getMaterialData('ALUMINIUM_LED_PROFILE').wastage, calculateBaseQty: (f) => (f.item === 'Side Portals' && f.l !== 18) ? f.h * MM_TO_FT : 0 },
+                    { item: "LED Light Strip (4000K)", unit: "RFt", rate: getMaterialData('LED_STRIP_4000K').rate, wastage: getMaterialData('LED_STRIP_4000K').wastage, calculateBaseQty: (f) => (f.item === 'Side Portals' && f.l !== 18) ? f.h * MM_TO_FT : 0 },
+                    { item: "1mm Wire (for fixture)", unit: "RFt", rate: getMaterialData('WIRE_1MM').rate, wastage: getMaterialData('WIRE_1MM').wastage, calculateBaseQty: (f) => (f.item === 'Side Portals' && f.l !== 18) ? 3.28 : 0 },
+                    { item: "LED Driver", unit: "Nos", rate: getMaterialData('LED_DRIVER').rate, wastage: getMaterialData('LED_DRIVER').wastage, calculateBaseQty: (f) => (f.item === 'Side Portals' && f.l !== 18) ? 1 : 0 },
+                    { item: "Aluminium Channel Profile", unit: "RFt", rate: getMaterialData('ALUMINIUM_CHANNEL_PROFILE').rate, wastage: getMaterialData('ALUMINIUM_CHANNEL_PROFILE').wastage, calculateBaseQty: (f) => f.item === 'Channels' ? 8 : 0 },
+                    { item: "Backclips for Accessories", unit: "Nos", rate: getMaterialData('BACKCLIPS').rate, wastage: getMaterialData('BACKCLIPS').wastage, calculateBaseQty: (f) => ['Straight Arm', 'Backbar'].includes(f.item) ? 2 : 0 },
+                    { item: "MS Pipe (15x30mm, 2mm thk)", unit: "Kg", rate: getMaterialData('MS_PIPE_15X30_2MM').rate, wastage: getMaterialData('MS_PIPE_15X30_2MM').wastage, calculateBaseQty: (f) => { const w = 0.43; if (f.item === 'Straight Arm') return 4 * w; if (f.item === 'Backbar') return (f.l * MM_TO_FT) * w; return 0; } },
+                    { item: "MS Shelf Bracket Cost", unit: "Nos", rate: getMaterialData('MS_SHELF_BRACKET').rate, wastage: getMaterialData('MS_SHELF_BRACKET').wastage, calculateBaseQty: (f) => f.item === 'Shelf Bracket' ? 1 : 0 },
                 ]
             }
         });
@@ -334,28 +338,37 @@
             let totalCost = 0;
 
             brandBomData.materials.forEach(mat => {
-                // Ensure rate and wastage are numbers, default to 0 if not found
+                // Safely access rate and wastage, defaulting to 0
                 const rate = mat.rate || 0;
                 const wastage = mat.wastage || 0;
 
                 const baseQty = mat.calculateBaseQty(fixture, options);
-                if (baseQty > 0) {
-                    const finalQty = baseQty * (1 + wastage / 100); // Use wastage from CSV
+                // Only proceed if baseQty is a positive number
+                if (typeof baseQty === 'number' && baseQty > 0) {
+                    const finalQty = baseQty * (1 + wastage / 100);
                     const amount = finalQty * rate;
-                    totalCost += amount;
-                    rowsHTML += `
-                         <tr class="border-b border-gray-700">
-                             <td class="p-2">${mat.item}</td>
-                             <td class="p-2 text-right">${baseQty.toFixed(2)}</td>
-                             <td class="p-2 text-center">${mat.unit}</td>
-                             <td class="p-2 text-right">${wastage.toFixed(2)}%</td> {/* Display wastage from CSV */}
-                             <td class="p-2 text-right">${finalQty.toFixed(2)}</td>
-                             <td class="p-2 text-right">${rate.toFixed(2)}</td>
-                             <td class="p-2 text-right font-medium">₹ ${amount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
-                         </tr>`;
+                    // Check if amount is a valid number before adding
+                    if (typeof amount === 'number' && !isNaN(amount)) {
+                        totalCost += amount;
+                        rowsHTML += `
+                            <tr class="border-b border-gray-700">
+                                <td class="p-2">${mat.item}</td>
+                                <td class="p-2 text-right">${baseQty.toFixed(2)}</td>
+                                <td class="p-2 text-center">${mat.unit}</td>
+                                <td class="p-2 text-right">${wastage.toFixed(2)}%</td>
+                                <td class="p-2 text-right">${finalQty.toFixed(2)}</td>
+                                <td class="p-2 text-right">${rate.toFixed(2)}</td>
+                                <td class="p-2 text-right font-medium">₹ ${amount.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                            </tr>`;
+                    } else {
+                        console.warn(`Invalid amount calculated for material "${mat.item}" in item "${fixture.item}". BaseQty: ${baseQty}, Rate: ${rate}, Wastage: ${wastage}`);
+                    }
+                } else if (baseQty < 0) {
+                    console.warn(`Negative base quantity calculated for material "${mat.item}" in item "${fixture.item}".`);
                 }
             });
 
+            // If no valid rows were generated, return empty
             if (!rowsHTML) return { html: '', summary: null };
 
             const sizeString = `(${fixture.l}L x ${fixture.w}W x ${fixture.h}H mm)`;
@@ -377,7 +390,7 @@
                                 <th class="p-2 text-left font-semibold w-2/5">Material</th>
                                 <th class="p-2 text-right font-semibold">Base Qty</th>
                                 <th class="p-2 text-center font-semibold">Unit</th>
-                                <th class="p-2 text-right font-semibold">Wastage</th> {/* Changed label */}
+                                <th class="p-2 text-right font-semibold">Wastage</th>
                                 <th class="p-2 text-right font-semibold">Final Qty</th>
                                 <th class="p-2 text-right font-semibold">Rate (₹)</th>
                                 <th class="p-2 text-right font-semibold">Amount (₹)</th>
@@ -400,13 +413,15 @@
             if (!summaryData || summaryData.length === 0) return '';
 
             let tableRowsHTML = '';
-            summaryData.sort((a, b) => a.name.localeCompare(b.name)); // Sort alphabetically by name
+            summaryData.sort((a, b) => a.name.localeCompare(b.name));
             summaryData.forEach(item => {
-                const amount = Math.round(item.cost * 2);
+                // Ensure cost is a valid number before calculating amount
+                const cost = typeof item.cost === 'number' && !isNaN(item.cost) ? item.cost : 0;
+                const amount = Math.round(cost * 2);
                 tableRowsHTML += `
                      <tr class="border-b border-gray-700">
                          <td class="p-3">${item.name}</td>
-                         <td class="p-3 text-right">₹ ${item.cost.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                         <td class="p-3 text-right">₹ ${cost.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                          <td class="p-3 text-right font-semibold">₹ ${amount.toLocaleString('en-IN')}</td>
                      </tr>
                  `;
@@ -446,11 +461,16 @@
                 if (values.length === headers.length) {
                     const entry = {};
                     headers.forEach((header, index) => {
-                        entry[header] = values[index];
+                        // Attempt to clean quotes, handle potential commas within quoted fields (basic)
+                        let value = values[index];
+                        if (value.startsWith('"') && value.endsWith('"')) {
+                            value = value.substring(1, value.length - 1).replace(/""/g, '"');
+                        }
+                        entry[header] = value;
                     });
                     data.push(entry);
                 } else {
-                    console.warn(`Skipping line ${i + 1} due to incorrect number of columns.`);
+                    console.warn(`CSV Parsing: Skipping line ${i + 1} due to inconsistent column count. Expected ${headers.length}, found ${values.length}. Line: "${lines[i]}"`);
                 }
             }
             return data;
@@ -458,15 +478,31 @@
 
         function processRateData(parsedData) {
             const groupedData = {};
-            parsedData.forEach(row => {
+            parsedData.forEach((row, index) => {
                 const { Brand, Item, L, W, H, FinalRate, ECPLRate } = row;
-                if (!Brand || !Item) return;
+                if (!Brand || !Item) {
+                    console.warn(`Rate Data Processing: Skipping row ${index + 2} due to missing Brand or Item.`);
+                    return;
+                }
                 if (!groupedData[Brand]) groupedData[Brand] = {};
-                const cleanItem = Item.toUpperCase();
+                const cleanItem = Item.toUpperCase().trim(); // Ensure item name is clean
                 if (!groupedData[Brand][cleanItem]) groupedData[Brand][cleanItem] = [];
+
+                const lVal = parseFloat(L);
+                const wVal = parseFloat(W);
+                const hVal = parseFloat(H);
+                const finalRateVal = parseFloat(FinalRate);
+                const ecplRateVal = parseFloat(ECPLRate);
+
+                // Check if any numeric conversion failed
+                if (isNaN(lVal) || isNaN(wVal) || isNaN(hVal) || isNaN(finalRateVal) || isNaN(ecplRateVal)) {
+                    console.warn(`Rate Data Processing: Skipping entry for ${Brand} - ${Item} due to invalid numeric data in row ${index + 2}. L=${L}, W=${W}, H=${H}, FinalRate=${FinalRate}, ECPLRate=${ECPLRate}`);
+                    return; // Skip this entry if any number is invalid
+                }
+
                 groupedData[Brand][cleanItem].push({
-                    l: parseFloat(L) || 0, w: parseFloat(W) || 0, h: parseFloat(H) || 0,
-                    finalRate: parseFloat(FinalRate) || 0, ecplRate: parseFloat(ECPLRate) || 0
+                    l: lVal, w: wVal, h: hVal,
+                    finalRate: finalRateVal, ecplRate: ecplRateVal
                 });
             });
             return groupedData;
@@ -474,19 +510,29 @@
 
         function processMaterialRates(parsedData) {
             const rates = {};
-            parsedData.forEach(row => {
-                // Expecting MaterialKey, Rate, Wastage columns
-                if (row.MaterialKey && row.Rate && row.Wastage !== undefined) {
-                    const key = row.MaterialKey.trim();
-                    const rate = parseFloat(row.Rate) || 0;
-                    const wastage = parseFloat(row.Wastage) || 0; // Default wastage to 0 if parsing fails
-                    rates[key] = { rate: rate, wastage: wastage }; // Store as an object
+            parsedData.forEach((row, index) => {
+                const { MaterialKey, Rate, Wastage } = row;
+                // Check if essential columns exist and have values
+                if (MaterialKey && MaterialKey.trim() !== '' && Rate !== undefined && Rate.trim() !== '' && Wastage !== undefined && Wastage.trim() !== '') {
+                    const key = MaterialKey.trim();
+                    const rateVal = parseFloat(Rate);
+                    const wastageVal = parseFloat(Wastage);
+
+                    // Check if parsing resulted in valid numbers
+                    if (!isNaN(rateVal) && !isNaN(wastageVal)) {
+                        rates[key] = { rate: rateVal, wastage: wastageVal };
+                    } else {
+                        console.warn(`Material Rate Processing: Skipping row ${index + 2} ('${key}') due to invalid Rate ('${Rate}') or Wastage ('${Wastage}'). Assigning default { rate: 0, wastage: 0 }.`);
+                        rates[key] = { ...DEFAULT_MATERIAL_DATA }; // Assign default if parsing fails
+                    }
                 } else {
-                    console.warn(`Skipping material rate row due to missing data: ${JSON.stringify(row)}`);
+                    console.warn(`Material Rate Processing: Skipping row ${index + 2} due to missing MaterialKey, Rate, or Wastage. Row: ${JSON.stringify(row)}`);
                 }
             });
-            // Check if essential rates were loaded
-            if (!rates.MDF_18_OSL_OWHITE) console.error("CRITICAL: MDF_18_OSL_OWHITE rate not loaded!");
+            // Check if essential rates were loaded correctly, provide more context
+            if (!rates.MDF_18_OSL_OWHITE || isNaN(rates.MDF_18_OSL_OWHITE.rate)) {
+                console.error("CRITICAL: MDF_18_OSL_OWHITE rate/wastage not loaded correctly! Check raw_material_rates.csv format and content.");
+            }
             return rates;
         }
     </script>
